@@ -6,6 +6,7 @@ import './styles.css';
 const initialState = {
   selectedFile: null,
   fileName: '',
+  sourceHtml: '',
   cleanedHtml: '',
   formattedHtml: '',
   fixes: [],
@@ -13,14 +14,24 @@ const initialState = {
   error: '',
   dragActive: false,
   copyStatus: 'idle',
+  conversionOptions: {
+    ulClass: '',
+    tableClass: '',
+    wrapTables: false,
+    tableWrapperClass: '',
+  },
 };
 
-const ALLOWED_ATTRIBUTES = new Set(['href', 'colspan', 'rowspan']);
+const GLOBAL_ALLOWED_ATTRIBUTES = new Set(['colspan', 'rowspan']);
+const LINK_ALLOWED_ATTRIBUTES = new Set(['href']);
+const IMAGE_ALLOWED_ATTRIBUTES = new Set(['src', 'alt', 'title', 'width', 'height']);
 const SERVICE_LINK_PATTERNS = /skr\.sh|screenshot|docs\.google\.com\/document\/d\//i;
 const SAFE_HREF_PATTERN = /^(https?:|mailto:|tel:|#|\/)/i;
+const SAFE_IMAGE_SRC_PATTERN = /^(data:image\/(?:png|jpe?g|gif|webp|svg\+xml);base64,|https?:|\/|\.\/|\.\.\/)/i;
 const DOCX_MIME_TYPES = [
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
 ];
+const IMAGE_PLACEHOLDER_CONVERTER = mammoth.images.imgElement(() => ({ src: '' }));
 
 const FIX_LABELS = {
   anchors: 'Удалены пустые служебные якоря',
@@ -32,8 +43,11 @@ const FIX_LABELS = {
   emptySpans: 'Удалены пустые span-обертки',
   attributes: 'Удалены inline-стили, классы и небезопасные атрибуты',
   brokenTags: 'Исправлены разорванные теги',
-  imageComments: 'Изображения заменены на комментарии',
+  images: 'Изображения заменены текстовыми метками',
   whitespace: 'Нормализованы пробелы и переносы строк',
+  listClasses: 'Добавлены классы для списков',
+  tableClasses: 'Добавлены классы для таблиц',
+  tableWrappers: 'Добавлены обертки для таблиц',
 };
 
 function appReducer(state, action) {
@@ -43,6 +57,7 @@ function appReducer(state, action) {
         ...state,
         selectedFile: action.file,
         fileName: action.file.name,
+        sourceHtml: '',
         cleanedHtml: '',
         formattedHtml: '',
         fixes: [],
@@ -58,10 +73,24 @@ function appReducer(state, action) {
       return {
         ...state,
         status: 'converted',
+        sourceHtml: action.sourceHtml,
         cleanedHtml: action.cleanedHtml,
         formattedHtml: action.formattedHtml,
         fixes: action.fixes,
         error: '',
+      };
+    case 'SET_CONVERSION_OPTIONS':
+      return {
+        ...state,
+        conversionOptions: action.options,
+        ...(action.cleanResult
+          ? {
+              cleanedHtml: action.cleanResult.html,
+              formattedHtml: action.cleanResult.html,
+              fixes: action.cleanResult.fixes,
+            }
+          : {}),
+        copyStatus: 'idle',
       };
     case 'CONVERT_ERROR':
       return { ...state, status: 'error', error: action.message };
@@ -98,28 +127,43 @@ function createCounters() {
     emptySpans: 0,
     attributes: 0,
     brokenTags: 0,
-    imageComments: 0,
+    images: 0,
     whitespace: 0,
+    listClasses: 0,
+    tableClasses: 0,
+    tableWrappers: 0,
   };
 }
 
-function normalizeWhitespace(html) {
+function normalizeTextValue(value) {
+  return value
+    .replace(/\u00a0/g, ' ')
+    .replace(/[ \t\r\n]+/g, ' ')
+    .replace(/\s+([,.;:!?%])/g, '$1')
+    .replace(/([«„])\s+/g, '$1')
+    .replace(/\s+([»“])/g, '$1');
+}
+
+function normalizeDocumentTextNodes(doc) {
   let fixed = 0;
-  
-  html = html.replace(/<p>\s*<\/p>/gi, '');
-  html = html.replace(/<(p|h[1-6]|li|td|th|div)>\s+/gi, '<$1>');
-  html = html.replace(/\s+<\/(p|h[1-6]|li|td|th|div)>/gi, '</$1>');
-  html = html.replace(/>\s+</g, '><');
-  html = html.replace(/(<\/[^>]+>)\s+(<[^>]+>)/g, '$1$2');
-  html = html.replace(/\n\s*\n\s*\n/g, '\n\n');
-  html = html.replace(/^\s+|\s+$/gm, '');
-  html = html.replace(/>\s*\n\s*</g, '>\n<');
-  html = html.replace(/\n{3,}/g, '\n\n');
-  html = html.trim();
-  
-  fixed = 1;
-  
-  return { html, fixed };
+  const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT);
+  const textNodes = [];
+
+  while (walker.nextNode()) {
+    textNodes.push(walker.currentNode);
+  }
+
+  textNodes.forEach((node) => {
+    const original = node.nodeValue || '';
+    const normalized = normalizeTextValue(original);
+
+    if (normalized !== original) {
+      node.nodeValue = normalized;
+      fixed = 1;
+    }
+  });
+
+  return fixed;
 }
 
 function fixBrokenTags(html) {
@@ -143,60 +187,127 @@ function fixBrokenTags(html) {
   return { html, fixed };
 }
 
-function replaceImagesWithComments(html) {
-  const doc = parseHtml(html);
-  let replaced = 0;
-  
-  const images = Array.from(doc.querySelectorAll('img'));
-  
-  images.forEach((image, index) => {
-    const comment = doc.createComment(` image ${index + 1} `);
-    const parent = image.parentNode;
-    
-    if (!parent) {
-      image.replaceWith(comment);
-      replaced++;
-      return;
-    }
-    
-    const figureWrapper = parent.closest('figure');
-    const targetParent = figureWrapper || parent;
-    const grandParent = targetParent.parentNode;
-    
-    if (!grandParent) {
-      image.replaceWith(comment);
-      replaced++;
-      return;
-    }
-    
-    const textContent = targetParent.textContent.trim();
-    const hasOnlyImage = !textContent || targetParent.children.length === 1;
-    
-    if (hasOnlyImage && targetParent.tagName === 'P') {
-      grandParent.insertBefore(comment, targetParent.nextSibling || targetParent);
-      targetParent.remove();
-      replaced++;
-    } else if (hasOnlyImage && targetParent.tagName === 'FIGURE') {
-      grandParent.insertBefore(comment, targetParent.nextSibling || targetParent);
-      targetParent.remove();
-      replaced++;
-    } else {
-      image.replaceWith(comment);
-      replaced++;
-    }
-  });
-  
-  return { html: doc.body.innerHTML, count: replaced };
+function isImagePlaceholderText(value) {
+  return /^(?:img\d+\s*)+$/i.test(value.trim());
 }
 
-function cleanDocumentHtml(html) {
+function replaceElementWithChildren(element) {
+  element.replaceWith(...Array.from(element.childNodes));
+}
+
+function replaceImagesWithPlaceholders(doc) {
+  const images = Array.from(doc.querySelectorAll('img'));
+
+  images.forEach((image, index) => {
+    image.replaceWith(doc.createTextNode(` img${index + 1} `));
+  });
+
+  doc.querySelectorAll('figure').forEach((figure) => {
+    replaceElementWithChildren(figure);
+  });
+
+  doc.querySelectorAll('a, span, strong, em, b, i').forEach((element) => {
+    if (isImagePlaceholderText(element.textContent || '')) {
+      replaceElementWithChildren(element);
+    }
+  });
+
+  doc.querySelectorAll('p').forEach((paragraph) => {
+    if (isImagePlaceholderText(paragraph.textContent || '')) {
+      replaceElementWithChildren(paragraph);
+    }
+  });
+
+  return images.length;
+}
+
+function removeImagePlaceholders(doc) {
+  let removed = 0;
+  const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_COMMENT);
+  const comments = [];
+
+  while (walker.nextNode()) {
+    comments.push(walker.currentNode);
+  }
+
+  comments.forEach((comment) => {
+    if (!/^\s*image\s+\d+\s*$/i.test(comment.nodeValue || '')) return;
+
+    const parent = comment.parentNode;
+    if (parent?.tagName === 'STRONG' && parent.parentNode?.tagName === 'P') {
+      parent.parentNode.remove();
+      removed++;
+      return;
+    }
+
+    if (parent?.tagName === 'P') {
+      parent.remove();
+      removed++;
+      return;
+    }
+
+    comment.remove();
+    removed++;
+  });
+
+  return removed;
+}
+
+function normalizeClassValue(value) {
+  return value
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .join(' ');
+}
+
+function applyCustomOutputOptions(doc, options = {}) {
+  const ulClass = normalizeClassValue(options.ulClass || '');
+  const tableClass = normalizeClassValue(options.tableClass || '');
+  const wrapperClass = normalizeClassValue(options.tableWrapperClass || '');
+  const counters = {
+    listClasses: 0,
+    tableClasses: 0,
+    tableWrappers: 0,
+  };
+
+  if (ulClass) {
+    doc.querySelectorAll('ul').forEach((list) => {
+      list.setAttribute('class', ulClass);
+      counters.listClasses++;
+    });
+  }
+
+  if (tableClass) {
+    doc.querySelectorAll('table').forEach((table) => {
+      table.setAttribute('class', tableClass);
+      counters.tableClasses++;
+    });
+  }
+
+  if (options.wrapTables) {
+    doc.querySelectorAll('table').forEach((table) => {
+      const wrapper = doc.createElement('div');
+
+      if (wrapperClass) {
+        wrapper.setAttribute('class', wrapperClass);
+      }
+
+      table.replaceWith(wrapper);
+      wrapper.appendChild(table);
+      counters.tableWrappers++;
+    });
+  }
+
+  return counters;
+}
+
+function cleanDocumentHtml(html, options = {}) {
   const { html: fixedHtml, fixed: brokenFixed } = fixBrokenTags(html);
-  const { html: htmlWithImages, count: imageCount } = replaceImagesWithComments(fixedHtml);
-  
-  const doc = parseHtml(htmlWithImages);
+  const doc = parseHtml(fixedHtml);
   const counters = createCounters();
   counters.brokenTags = brokenFixed;
-  counters.imageComments = imageCount;
+  counters.images = replaceImagesWithPlaceholders(doc);
 
   doc.querySelectorAll('a[id^="_"]').forEach((anchor) => {
     if (!anchor.textContent.trim() && anchor.children.length === 0) {
@@ -240,25 +351,27 @@ function cleanDocumentHtml(html) {
   });
 
   doc.querySelectorAll('p').forEach((paragraph) => {
-    if (!paragraph.textContent.trim() && !paragraph.children.length) {
+    if (!paragraph.textContent.trim() && !paragraph.querySelector('img') && !paragraph.children.length) {
       counters.emptyParagraphs++;
       paragraph.remove();
     }
   });
 
+  counters.emptyParagraphs += removeImagePlaceholders(doc);
+
   doc.body.querySelectorAll('*').forEach((element) => {
     counters.attributes += stripUnsafeAttributes(element);
   });
 
-  let resultHtml = doc.body.innerHTML;
-  
-  resultHtml = resultHtml.replace(/<!--\s*image\s+(\d+)\s*-->/gi, '<!-- image $1 -->');
-  
-  const { html: normalizedHtml, fixed: whitespaceFixed } = normalizeWhitespace(resultHtml);
-  counters.whitespace = whitespaceFixed;
+  const customCounters = applyCustomOutputOptions(doc, options);
+  counters.listClasses = customCounters.listClasses;
+  counters.tableClasses = customCounters.tableClasses;
+  counters.tableWrappers = customCounters.tableWrappers;
+
+  counters.whitespace = normalizeDocumentTextNodes(doc);
 
   return {
-    html: normalizedHtml,
+    html: formatHtml(doc.body.innerHTML),
     fixes: createFixList(counters),
   };
 }
@@ -313,13 +426,25 @@ function stripUnsafeAttributes(element) {
       return;
     }
 
-    if (name === 'href' && !SAFE_HREF_PATTERN.test(value)) {
+    if (name === 'href' && (!LINK_ALLOWED_ATTRIBUTES.has(name) || !SAFE_HREF_PATTERN.test(value))) {
       element.removeAttribute(attribute.name);
       removed++;
       return;
     }
 
-    if (!ALLOWED_ATTRIBUTES.has(name)) {
+    if (name === 'src' && element.tagName === 'IMG' && !SAFE_IMAGE_SRC_PATTERN.test(value)) {
+      element.removeAttribute(attribute.name);
+      removed++;
+      return;
+    }
+
+    const allowedAttributes = element.tagName === 'A'
+      ? new Set([...GLOBAL_ALLOWED_ATTRIBUTES, ...LINK_ALLOWED_ATTRIBUTES])
+      : element.tagName === 'IMG'
+        ? new Set([...GLOBAL_ALLOWED_ATTRIBUTES, ...IMAGE_ALLOWED_ATTRIBUTES])
+        : GLOBAL_ALLOWED_ATTRIBUTES;
+
+    if (!allowedAttributes.has(name)) {
       element.removeAttribute(attribute.name);
       removed++;
     }
@@ -336,72 +461,128 @@ function createFixList(counters) {
 
 function getHtmlStats(html) {
   const doc = parseHtml(html);
-  const imageComments = (html.match(/<!--\s*image\s+\d+\s*-->/gi) || []).length;
+  const imagePlaceholders = html.match(/\bimg\d+\b/g) || [];
 
   return [
     { label: 'Заголовков', value: doc.querySelectorAll('h1, h2, h3, h4, h5, h6').length },
     { label: 'Таблиц', value: doc.querySelectorAll('table').length },
     { label: 'Ссылок', value: doc.querySelectorAll('a').length },
     { label: 'Списков', value: doc.querySelectorAll('ul, ol').length },
-    { label: 'Изображений', value: imageComments },
+    { label: 'Изображений', value: imagePlaceholders.length },
   ];
 }
 
 function formatHtml(html) {
   const indent = '  ';
-  let formatted = '';
-  let indentLevel = 0;
-  
-  const selfClosing = new Set(['br', 'hr', 'img', 'input', 'meta', 'link']);
+  const voidElements = new Set(['br', 'hr', 'img', 'input', 'meta', 'link']);
   const blockElements = new Set([
-    'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'table', 'thead', 'tbody', 'tr', 
-    'ul', 'ol', 'li', 'blockquote', 'div', 'section', 'article', 'header', 'footer'
+    'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'table', 'thead', 'tbody', 'tr',
+    'ul', 'ol', 'li', 'blockquote', 'div', 'section', 'article', 'header', 'footer', 'figure'
   ]);
-  
-  const tokens = html.split(/(<[^>]+>)/g).filter(Boolean);
-  
-  tokens.forEach((token) => {
-    const trimmed = token.trim();
-    if (!trimmed) return;
-    
-    if (token.startsWith('<!--')) {
-      formatted += '\n' + indent.repeat(indentLevel) + token + '\n';
-      return;
+  const doc = parseHtml(html);
+
+  const hasBlockChild = (element) => Array.from(element.children).some((child) => (
+    blockElements.has(child.tagName.toLowerCase())
+  ));
+
+  const normalizeText = (value) => normalizeTextValue(value).trim();
+
+  const getOpeningTag = (element) => {
+    const match = element.outerHTML.match(/^<[^>]+>/);
+    return match ? match[0] : `<${element.tagName.toLowerCase()}>`;
+  };
+
+  const shouldInsertSpace = (left, right) => {
+    if (!left || !right || !left.text || !right.text) return false;
+
+    const leftChar = left.text.slice(-1);
+    const rightChar = right.text.charAt(0);
+
+    if (/^[,.;:!?%»”)\]}]/.test(rightChar)) return false;
+    if (/[«„([{]$/.test(leftChar)) return false;
+    if (leftChar === '-' || rightChar === '-') return false;
+    if (/\d/.test(leftChar) && /\d/.test(rightChar)) return false;
+
+    return true;
+  };
+
+  const joinInlineParts = (parts) => {
+    let previous = null;
+
+    return parts.reduce((html, part) => {
+      if (!part.html) return html;
+
+      const separator = shouldInsertSpace(previous, part) ? ' ' : '';
+      if (part.text) previous = part;
+
+      return `${html}${separator}${part.html}`;
+    }, '').trim();
+  };
+
+  const renderInlinePart = (node) => {
+    if (node.nodeType === Node.TEXT_NODE) {
+      const text = normalizeText(node.textContent || '');
+      return { html: text, text };
     }
-    
-    if (token.startsWith('</')) {
-      const tagName = token.slice(2, -1).toLowerCase();
-      if (blockElements.has(tagName)) {
-        indentLevel = Math.max(0, indentLevel - 1);
-        formatted += '\n' + indent.repeat(indentLevel) + token + '\n';
-      } else {
-        formatted += token;
-      }
-      return;
+
+    if (node.nodeType === Node.COMMENT_NODE) {
+      return { html: `<!--${node.nodeValue}-->`, text: '' };
     }
-    
-    if (token.startsWith('<')) {
-      const match = token.match(/^<(\w+)/);
-      if (match) {
-        const tagName = match[1].toLowerCase();
-        if (blockElements.has(tagName)) {
-          formatted += '\n' + indent.repeat(indentLevel) + token;
-          if (!selfClosing.has(tagName) && !token.endsWith('/>')) {
-            indentLevel++;
-          }
-          return;
-        }
-      }
-      formatted += token;
-      return;
+
+    if (node.nodeType !== Node.ELEMENT_NODE) return { html: '', text: '' };
+
+    const tagName = node.tagName.toLowerCase();
+    if (voidElements.has(tagName)) {
+      return { html: node.outerHTML, text: normalizeText(node.textContent || '') };
     }
-    
-    formatted += token;
-  });
-  
-  return formatted
+
+    if (blockElements.has(tagName) && hasBlockChild(node)) {
+      return { html: node.outerHTML, text: normalizeText(node.textContent || '') };
+    }
+
+    const innerHtml = joinInlineParts(Array.from(node.childNodes).map(renderInlinePart));
+    const html = `${getOpeningTag(node)}${innerHtml}</${tagName}>`;
+
+    return { html, text: normalizeText(node.textContent || '') };
+  };
+
+  const renderNode = (node, depth = 0) => {
+    if (node.nodeType === Node.TEXT_NODE) {
+      const text = normalizeText(node.textContent || '');
+      return text ? [`${indent.repeat(depth)}${text}`] : [];
+    }
+
+    if (node.nodeType === Node.COMMENT_NODE) {
+      return [`${indent.repeat(depth)}<!--${node.nodeValue}-->`];
+    }
+
+    if (node.nodeType !== Node.ELEMENT_NODE) return [];
+
+    const tagName = node.tagName.toLowerCase();
+    if (voidElements.has(tagName)) return [`${indent.repeat(depth)}${node.outerHTML}`];
+
+    const children = Array.from(node.childNodes);
+    const shouldStayInline = !hasBlockChild(node)
+      && ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'li', 'td', 'th', 'figure'].includes(tagName);
+
+    if (shouldStayInline) {
+      const innerHtml = joinInlineParts(children.map(renderInlinePart));
+      return [`${indent.repeat(depth)}${getOpeningTag(node)}${innerHtml}</${tagName}>`];
+    }
+
+    const lines = [`${indent.repeat(depth)}${getOpeningTag(node)}`];
+    children.forEach((child) => {
+      lines.push(...renderNode(child, depth + 1));
+    });
+    lines.push(`${indent.repeat(depth)}</${tagName}>`);
+    return lines;
+  };
+
+  return Array.from(doc.body.childNodes)
+    .map((node) => renderNode(node).join('\n'))
+    .filter(Boolean)
+    .join('\n\n')
     .replace(/\n{3,}/g, '\n\n')
-    .replace(/^\n+/, '')
     .trim();
 }
 
@@ -443,7 +624,14 @@ function Hero() {
   );
 }
 
-function UploadZone({ state, onFileSelect, onConvert, fileInputRef }) {
+function UploadZone({
+  state,
+  options,
+  onFileSelect,
+  onConvert,
+  onOptionsChange,
+  fileInputRef,
+}) {
   const uploadClassName = [
     'upload-zone',
     state.dragActive ? 'upload-zone--drag-active' : '',
@@ -490,6 +678,52 @@ function UploadZone({ state, onFileSelect, onConvert, fileInputRef }) {
         accept={`.docx,${DOCX_MIME_TYPES.join(',')}`}
         onChange={(event) => handleFile(event.target.files?.[0])}
       />
+
+      <div className="converter-settings" aria-label="Настройки HTML">
+        <label className="converter-settings__field">
+          <span className="converter-settings__label">Класс ul</span>
+          <input
+            className="converter-settings__input"
+            type="text"
+            value={options.ulClass}
+            placeholder="content-list"
+            onChange={(event) => onOptionsChange({ ulClass: event.target.value })}
+          />
+        </label>
+
+        <label className="converter-settings__field">
+          <span className="converter-settings__label">Класс table</span>
+          <input
+            className="converter-settings__input"
+            type="text"
+            value={options.tableClass}
+            placeholder="content-table"
+            onChange={(event) => onOptionsChange({ tableClass: event.target.value })}
+          />
+        </label>
+
+        <label className="converter-settings__toggle">
+          <input
+            className="converter-settings__checkbox"
+            type="checkbox"
+            checked={options.wrapTables}
+            onChange={(event) => onOptionsChange({ wrapTables: event.target.checked })}
+          />
+          <span>Обертка table</span>
+        </label>
+
+        <label className="converter-settings__field">
+          <span className="converter-settings__label">Класс обертки</span>
+          <input
+            className="converter-settings__input"
+            type="text"
+            value={options.tableWrapperClass}
+            placeholder="table-container"
+            disabled={!options.wrapTables}
+            onChange={(event) => onOptionsChange({ tableWrapperClass: event.target.value })}
+          />
+        </label>
+      </div>
 
       <div className="converter__controls" aria-label="Действия с документом">
         <button
@@ -615,20 +849,24 @@ function App() {
   const [state, dispatch] = useReducer(appReducer, initialState);
   const fileInputRef = useRef(null);
 
-  const convertDocument = async (file = state.selectedFile) => {
+  const convertDocument = async (file = state.selectedFile, options = state.conversionOptions) => {
     if (!file) return;
 
     dispatch({ type: 'CONVERT_START' });
 
     try {
       const arrayBuffer = await file.arrayBuffer();
-      const result = await mammoth.convertToHtml({ arrayBuffer });
-      const cleanResult = cleanDocumentHtml(result.value);
+      const result = await mammoth.convertToHtml(
+        { arrayBuffer },
+        { convertImage: IMAGE_PLACEHOLDER_CONVERTER }
+      );
+      const cleanResult = cleanDocumentHtml(result.value, options);
 
       dispatch({
         type: 'CONVERT_SUCCESS',
+        sourceHtml: result.value,
         cleanedHtml: cleanResult.html,
-        formattedHtml: formatHtml(cleanResult.html),
+        formattedHtml: cleanResult.html,
         fixes: cleanResult.fixes,
       });
     } catch (error) {
@@ -658,7 +896,20 @@ function App() {
     }
 
     dispatch({ type: 'SET_FILE', file });
-    void convertDocument(file);
+    void convertDocument(file, state.conversionOptions);
+  };
+
+  const updateConversionOptions = (patch) => {
+    const options = { ...state.conversionOptions, ...patch };
+    const cleanResult = state.sourceHtml
+      ? cleanDocumentHtml(state.sourceHtml, options)
+      : null;
+
+    dispatch({
+      type: 'SET_CONVERSION_OPTIONS',
+      options,
+      cleanResult,
+    });
   };
 
   const copyHtml = async () => {
@@ -696,9 +947,11 @@ function App() {
           <Hero />
           <UploadZone
             state={state}
+            options={state.conversionOptions}
             fileInputRef={fileInputRef}
             onFileSelect={handleFileSelect}
-            onConvert={() => convertDocument()}
+            onConvert={() => convertDocument(state.selectedFile, state.conversionOptions)}
+            onOptionsChange={updateConversionOptions}
           />
           <ResultPanel
             state={state}
