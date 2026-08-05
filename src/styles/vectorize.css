@@ -24,7 +24,7 @@
 .vector-settings {
   display: grid;
   gap: 15px;
-  border-top: 1px solid var(--line);
+  border-top: 1px solid var(--color-border);
   padding-top: 15px;
 }
 
@@ -60,10 +60,10 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--color-border);
   padding: 10px 13px;
-  background: var(--surface-2);
-  color: var(--muted);
+  background: var(--color-surface-raised);
+  color: var(--color-text-secondary);
   font-size: 0.75rem;
   font-weight: 800;
 }
@@ -73,7 +73,7 @@
   display: grid;
   place-items: center;
   overflow: hidden;
-  background: #0e0e13;
+  background: var(--color-surface-preview);
 }
 
 .comparison-card__media img {
@@ -83,7 +83,7 @@
 }
 
 .comparison-card__placeholder {
-  color: rgba(242, 164, 232, 0.35);
+  color: var(--color-accent-placeholder);
   font-size: clamp(2rem, 5vw, 4rem);
   font-weight: 900;
   letter-spacing: 0.08em;
@@ -94,10 +94,10 @@
   align-items: center;
   justify-content: space-between;
   gap: 20px;
-  border: 1px solid rgba(242, 164, 232, 0.26);
+  border: 1px solid var(--color-border-result);
   border-radius: var(--radius);
   padding: 16px;
-  background: var(--accent-gradient-soft);
+  background: var(--gradient-accent-soft);
   animation: reveal-down 260ms ease both;
 }
 
@@ -113,7 +113,7 @@
 }
 
 .vector-result > div > span:last-child {
-  color: var(--muted);
+  color: var(--color-text-secondary);
   font-size: 0.82rem;
 }
 
@@ -127,8 +127,8 @@
   display: flex;
   align-items: center;
   padding: 0 15px;
-  background: var(--surface-2);
-  color: var(--muted);
+  background: var(--color-surface-raised);
+  color: var(--color-text-secondary);
   font-size: 0.84rem;
   font-weight: 800;
   cursor: pointer;
@@ -136,16 +136,15 @@
 }
 
 .svg-code summary:hover {
-  background: var(--surface-3);
-  color: var(--text);
+  background: var(--color-surface-hover);
+  color: var(--color-text-primary);
 }
 
 .svg-code pre {
   max-height: 420px;
   overflow: auto;
-  border-top: 1px solid var(--line);
+  border-top: 1px solid var(--color-border);
   padding: 16px;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
-

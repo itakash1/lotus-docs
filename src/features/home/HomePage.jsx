@@ -38,7 +38,7 @@ export function HomePage({ onNavigate }) {
         <div className="hero__content">
           <p className="hero__eyebrow">Приватная обработка файлов в браузере</p>
           <h1 className="hero__title">
-            Публикуйте быстрее.
+            Публикуйте быстрее.<br />
             <span>Без ручной рутины.</span>
           </h1>
           <p className="hero__text">

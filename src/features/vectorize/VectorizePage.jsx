@@ -1,5 +1,6 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { EmptyState } from '../../components/ui/EmptyState';
+import { FileQueue } from '../../components/ui/FileQueue';
 import { PageHead } from '../../components/ui/PageHead';
 import { StatusNotice } from '../../components/ui/StatusNotice';
 import { UploadZone } from '../../components/ui/UploadZone';
@@ -7,10 +8,12 @@ import { usePreviewRegistry } from '../../hooks/usePreviewRegistry';
 import { downloadBlob } from '../../utils/browserFiles';
 import { decorateConversionResult } from '../../utils/conversionResults';
 import { detectSourceFormat, traceRasterToSvg } from '../../utils/fileConverters';
+import { getBasicQueueError } from '../../utils/fileQueue';
 import { formatBytes, readableError, unpackProgress } from '../../utils/presentation';
 
 export function VectorizePage() {
   const [file, setFile] = useState(null);
+  const [fileFormat, setFileFormat] = useState('');
   const [sourcePreview, setSourcePreview] = useState('');
   const [result, setResult] = useState(null);
   const [svgText, setSvgText] = useState('');
@@ -23,11 +26,26 @@ export function VectorizePage() {
   const [progress, setProgress] = useState(0);
   const [progressLabel, setProgressLabel] = useState('');
   const [error, setError] = useState('');
+  const [selectionError, setSelectionError] = useState('');
+  const [admissionPending, setAdmissionPending] = useState(false);
   const runIdRef = useRef(0);
+  const queueGenerationRef = useRef(0);
+  const admissionChainRef = useRef(Promise.resolve());
+  const admissionCountRef = useRef(0);
+  const mountedRef = useRef(true);
   const {
     createPreview: createSourcePreview,
     clearPreviews: clearSourcePreviews,
   } = usePreviewRegistry();
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      queueGenerationRef.current += 1;
+      runIdRef.current += 1;
+    };
+  }, []);
   const {
     createPreview: createResultPreview,
     clearPreviews: clearResultPreviews,
@@ -44,34 +62,84 @@ export function VectorizePage() {
     if (file) setStatus('ready');
   };
 
-  const handleFile = async (files) => {
-    const nextFile = files?.[0];
-    if (!nextFile) return;
-    const detected = await Promise.resolve(detectSourceFormat(nextFile));
-    if (!['png', 'jpeg', 'webp'].includes(detected)) {
-      clearSourcePreviews();
-      clearResultPreviews();
-      setFile(null);
-      setSourcePreview('');
-      setResult(null);
-      setStatus('idle');
-      setError('Для трассировки выберите PNG, JPEG или WebP.');
-      return;
-    }
+  const handleFile = (files) => {
+    const incomingFiles = Array.from(files || []);
+    if (!incomingFiles.length) return;
+    const generation = queueGenerationRef.current;
+    admissionCountRef.current += 1;
+    setAdmissionPending(true);
+    admissionChainRef.current = admissionChainRef.current
+      .catch(() => undefined)
+      .then(async () => {
+        if (generation !== queueGenerationRef.current) return;
+        if (incomingFiles.length !== 1) {
+          setSelectionError('Для трассировки можно добавить только одно изображение. Очередь не изменена.');
+          return;
+        }
+        const basicError = getBasicQueueError(incomingFiles);
+        if (basicError) {
+          setSelectionError(`${basicError} Очередь не изменена.`);
+          return;
+        }
+        const nextFile = incomingFiles[0];
+        let detected;
+        try {
+          detected = await Promise.resolve(detectSourceFormat(nextFile));
+        } catch {
+          if (generation === queueGenerationRef.current) {
+            setSelectionError('Не удалось прочитать добавляемое изображение. Очередь не изменена.');
+          }
+          return;
+        }
+        if (generation !== queueGenerationRef.current) return;
+        if (!['png', 'jpeg', 'webp'].includes(detected)) {
+          setSelectionError('Для трассировки добавьте PNG, JPEG или WebP. Очередь не изменена.');
+          return;
+        }
+        runIdRef.current += 1;
+        clearSourcePreviews();
+        clearResultPreviews();
+        setFile(nextFile);
+        setFileFormat(detected);
+        setSourcePreview(createSourcePreview(nextFile));
+        setResult(null);
+        setSvgText('');
+        setStatus('ready');
+        setProgress(0);
+        setError('');
+        setSelectionError('');
+      })
+      .catch(() => {
+        if (generation === queueGenerationRef.current) {
+          setSelectionError('Не удалось проверить добавляемое изображение. Очередь не изменена.');
+        }
+      })
+      .finally(() => {
+        admissionCountRef.current = Math.max(0, admissionCountRef.current - 1);
+        if (!admissionCountRef.current && mountedRef.current) setAdmissionPending(false);
+      });
+  };
+
+  const clearSelectedFile = () => {
+    queueGenerationRef.current += 1;
     runIdRef.current += 1;
     clearSourcePreviews();
     clearResultPreviews();
-    setFile(nextFile);
-    setSourcePreview(createSourcePreview(nextFile));
+    setFile(null);
+    setFileFormat('');
+    setSourcePreview('');
     setResult(null);
     setSvgText('');
-    setStatus('ready');
+    setStatus('idle');
     setProgress(0);
+    setProgressLabel('');
     setError('');
+    setSelectionError('');
   };
 
   const trace = async () => {
-    if (!file || status === 'processing') return;
+    if (!file || status === 'processing' || admissionCountRef.current) return;
+    queueGenerationRef.current += 1;
     const runId = ++runIdRef.current;
     clearResultPreviews();
     setResult(null);
@@ -98,7 +166,15 @@ export function VectorizePage() {
       });
       if (runId !== runIdRef.current) return;
       const decorated = await decorateConversionResult(output, file, createResultPreview);
+      if (runId !== runIdRef.current) {
+        clearResultPreviews();
+        return;
+      }
       const text = output.meta?.svg || await output.blob.text();
+      if (runId !== runIdRef.current) {
+        clearResultPreviews();
+        return;
+      }
       decorated.meta = {
         ...decorated.meta,
         paths: (text.match(/<path\b/gi) || []).length,
@@ -126,13 +202,24 @@ export function VectorizePage() {
       <div className="vector-workspace">
         <section className="vector-sidebar">
           <UploadZone
+            id="vectorize-upload-trigger"
             accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp"
             badge="IMG"
+            describedBy={selectionError ? 'vectorize-file-queue-error' : undefined}
             disabled={status === 'processing'}
-            fileName={file?.name}
             hint="PNG, JPEG или WebP · лучше всего работают логотипы и графика"
             onFiles={handleFile}
-            title="Добавьте растр"
+            title={file ? 'Заменить изображение' : 'Добавьте растр'}
+          />
+          <FileQueue
+            id="vectorize-file-queue"
+            files={file ? [file] : []}
+            error={selectionError}
+            disabled={status === 'processing'}
+            getFormat={() => fileFormat}
+            onClear={clearSelectedFile}
+            onRemove={clearSelectedFile}
+            uploadTriggerId="vectorize-upload-trigger"
           />
           <div className="vector-settings">
             <label className="field">
@@ -216,7 +303,7 @@ export function VectorizePage() {
                 <small>Больше цветов точнее передаёт детали исходника.</small>
               </label>
             )}
-            <button className="button button--large" type="button" disabled={!file || status === 'processing'} onClick={trace}>
+            <button className="button button--large" type="button" disabled={!file || status === 'processing' || admissionPending} onClick={trace}>
               {status === 'processing'
                 ? <><span className="spinner spinner--button" aria-hidden="true" />Трассировка</>
                 : 'Создать SVG'}

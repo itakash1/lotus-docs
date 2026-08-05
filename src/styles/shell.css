@@ -33,9 +33,9 @@
   position: sticky;
   top: 0;
   z-index: 30;
-  border-bottom: 1px solid var(--line);
-  background: rgba(5, 5, 7, 0.78);
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.18);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface-header);
+  box-shadow: var(--shadow-header);
   backdrop-filter: blur(24px) saturate(135%);
 }
 
@@ -54,7 +54,7 @@
   align-items: center;
   gap: 12px;
   border-radius: var(--radius-sm);
-  color: var(--text);
+  color: var(--color-text-primary);
   font-weight: 850;
   letter-spacing: -0.015em;
 }
@@ -65,15 +65,15 @@
   height: 34px;
   flex: 0 0 auto;
   border-radius: 50%;
-  background: #08080b;
-  filter: drop-shadow(0 0 12px rgba(242, 164, 232, 0.24));
+  background: var(--color-brand-mark-bg);
+  filter: drop-shadow(var(--shadow-brand-mark));
   transition: transform 220ms ease, filter 220ms ease;
 }
 
 .site-header__brand:hover .site-header__logo,
 .site-footer__brand:hover img {
   transform: rotate(-5deg) scale(1.06);
-  filter: drop-shadow(0 0 18px rgba(255, 111, 218, 0.4));
+  filter: drop-shadow(var(--shadow-brand-mark-hover));
 }
 
 .site-header__nav,
@@ -101,7 +101,7 @@
   border: 1px solid transparent;
   border-radius: 12px;
   padding: 0 13px;
-  color: var(--muted);
+  color: var(--color-text-secondary);
   font-size: 0.91rem;
   font-weight: 750;
   line-height: 1;
@@ -111,9 +111,9 @@
 
 .site-header__link:hover,
 .site-header__link--active {
-  border-color: rgba(242, 164, 232, 0.2);
-  background: rgba(242, 164, 232, 0.075);
-  color: var(--text);
+  border-color: var(--color-border-nav-hover);
+  background: var(--color-accent-surface-subtle);
+  color: var(--color-text-primary);
 }
 
 .site-header__link:hover {
@@ -122,16 +122,15 @@
 
 .site-header__link--cta {
   margin-left: 6px;
-  border-color: var(--lotus-line);
-  background: var(--accent-gradient-soft);
-  color: #f9c9f2;
+  border-color: var(--color-border-accent);
+  background: var(--gradient-accent-soft);
+  color: var(--color-text-accent-cta);
 }
 
 .site-header__link--cta:hover,
 .site-header__link--cta.site-header__link--active {
   border-color: transparent;
-  background: var(--accent-gradient);
-  color: #08060a;
-  box-shadow: 0 10px 34px rgba(211, 104, 234, 0.22);
+  background: var(--gradient-accent-action);
+  color: var(--color-text-on-accent-strong);
+  box-shadow: var(--shadow-header-cta);
 }
-

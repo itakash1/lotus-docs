@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { EmptyState } from '../../components/ui/EmptyState';
+import { FileQueue } from '../../components/ui/FileQueue';
 import { PageHead } from '../../components/ui/PageHead';
 import { StatusNotice } from '../../components/ui/StatusNotice';
 import { UploadZone } from '../../components/ui/UploadZone';
@@ -8,11 +9,21 @@ import { ACCEPT_BY_FORMAT } from '../../constants/formats';
 import { downloadText } from '../../utils/browserFiles';
 import { copyToClipboard } from '../../utils/clipboard';
 import { getBaseName, sanitizeFileName } from '../../utils/fileConverters';
+import { getBasicQueueError } from '../../utils/fileQueue';
 import { cleanDocumentHtml, htmlToMarkdown, htmlToPlainText } from '../../utils/htmlCleaner';
 import { readableError } from '../../utils/presentation';
 import { ImagesPanel, ResultPanel } from './ArticleResults';
 import { Settings } from './ArticleSettings';
 import { extractArticle } from './articleProcessing';
+
+function revokeImageUrls(images = []) {
+  const urls = new Set();
+  images.forEach((image) => {
+    if (image.dataUrl?.startsWith('blob:')) urls.add(image.dataUrl);
+    if (image.optimized?.dataUrl?.startsWith('blob:')) urls.add(image.optimized.dataUrl);
+  });
+  urls.forEach((url) => URL.revokeObjectURL(url));
+}
 
 export function ArticleConverterPage() {
   const [state, setState] = useState(ARTICLE_INITIAL_STATE);
@@ -22,35 +33,45 @@ export function ArticleConverterPage() {
     tableWrapperClass: '',
     imageExtension: 'png',
   });
+  const [selectionError, setSelectionError] = useState('');
   const runIdRef = useRef(0);
   const baseName = getBaseName(state.fileName || 'document');
   useEffect(() => () => {
-    const urls = new Set();
-    state.images.forEach((image) => {
-      if (image.dataUrl?.startsWith('blob:')) urls.add(image.dataUrl);
-      if (image.optimized?.dataUrl?.startsWith('blob:')) urls.add(image.optimized.dataUrl);
-    });
-    urls.forEach((url) => URL.revokeObjectURL(url));
-  }, [state.images]);
+    runIdRef.current += 1;
+  }, []);
+  useEffect(() => () => revokeImageUrls(state.images), [state.images]);
 
   const handleFile = (files) => {
-    const file = files?.[0];
-    if (!file) return;
-    if (!/\.docx$/i.test(file.name)) {
-      runIdRef.current += 1;
-      setState({
-        ...ARTICLE_INITIAL_STATE,
-        status: 'error',
-        error: 'Выберите документ Word с расширением .docx.',
-      });
+    const incomingFiles = Array.from(files || []);
+    if (!incomingFiles.length) return;
+    if (incomingFiles.length !== 1) {
+      setSelectionError('Для статьи можно добавить только один DOCX. Очередь не изменена.');
       return;
     }
+    const basicError = getBasicQueueError(incomingFiles);
+    if (basicError) {
+      setSelectionError(`${basicError} Очередь не изменена.`);
+      return;
+    }
+    const file = incomingFiles[0];
+    if (!/\.docx$/i.test(file.name)) {
+      setSelectionError('Добавьте документ Word с расширением .docx. Очередь не изменена.');
+      return;
+    }
+    runIdRef.current += 1;
     setState({
       ...ARTICLE_INITIAL_STATE,
       selectedFile: file,
       fileName: file.name,
       status: 'ready',
     });
+    setSelectionError('');
+  };
+
+  const clearSelectedFile = () => {
+    runIdRef.current += 1;
+    setState(ARTICLE_INITIAL_STATE);
+    setSelectionError('');
   };
 
   const convertDocument = async () => {
@@ -77,7 +98,10 @@ export function ArticleConverterPage() {
         if (runId !== runIdRef.current) return;
         setState((current) => ({ ...current, progress, progressLabel }));
       });
-      if (runId !== runIdRef.current) return;
+      if (runId !== runIdRef.current) {
+        revokeImageUrls(result.images);
+        return;
+      }
       setState((current) => ({
         ...current,
         ...result,
@@ -168,15 +192,28 @@ export function ArticleConverterPage() {
         aside={<span className="privacy-badge"><span aria-hidden="true">●</span> Файл не загружается на сервер</span>}
       />
       <div className="upload-row">
-        <UploadZone
-          accept={ACCEPT_BY_FORMAT.docx}
-          badge="DOCX"
-          disabled={state.status === 'processing'}
-          fileName={state.fileName}
-          hint="Документ Word или экспорт из Google Docs"
-          onFiles={handleFile}
-          title="Перетащите DOCX или выберите файл"
-        />
+        <div className="upload-stack">
+          <UploadZone
+            id="article-upload-trigger"
+            accept={ACCEPT_BY_FORMAT.docx}
+            badge="DOCX"
+            describedBy={selectionError ? 'article-file-queue-error' : undefined}
+            disabled={state.status === 'processing'}
+            hint="Документ Word или экспорт из Google Docs"
+            onFiles={handleFile}
+            title={state.selectedFile ? 'Заменить DOCX' : 'Перетащите DOCX или выберите файл'}
+          />
+          <FileQueue
+            id="article-file-queue"
+            files={state.selectedFile ? [state.selectedFile] : []}
+            error={selectionError}
+            disabled={state.status === 'processing'}
+            getFormat={() => 'docx'}
+            onClear={clearSelectedFile}
+            onRemove={clearSelectedFile}
+            uploadTriggerId="article-upload-trigger"
+          />
+        </div>
         <button
           className="button button--large"
           type="button"

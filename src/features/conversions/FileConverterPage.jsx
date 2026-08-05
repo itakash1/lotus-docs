@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ACCEPT_BY_FORMAT, FORMAT_LABELS, RASTER_FORMATS, SOURCE_FORMATS } from '../../constants/formats';
-import { EmptyState } from '../../components/ui/EmptyState';
+import { FileQueue } from '../../components/ui/FileQueue';
 import { PageHead } from '../../components/ui/PageHead';
 import { ResultCards } from '../../components/ui/ResultCards';
 import { StatusNotice } from '../../components/ui/StatusNotice';
@@ -9,6 +9,7 @@ import { usePreviewRegistry } from '../../hooks/usePreviewRegistry';
 import { downloadResults, yieldToBrowser } from '../../utils/browserFiles';
 import { decorateConversionResult } from '../../utils/conversionResults';
 import { convertFile, detectSourceFormat, getTargetsForSource } from '../../utils/fileConverters';
+import { appendUniqueFiles, getBasicQueueError } from '../../utils/fileQueue';
 import { readableError, unpackProgress } from '../../utils/presentation';
 
 export function FileConverterPage() {
@@ -21,58 +22,150 @@ export function FileConverterPage() {
   const [progress, setProgress] = useState(0);
   const [progressLabel, setProgressLabel] = useState('');
   const [error, setError] = useState('');
+  const [selectionError, setSelectionError] = useState('');
+  const [admissionPending, setAdmissionPending] = useState(false);
   const [downloadBusy, setDownloadBusy] = useState(false);
+  const filesRef = useRef([]);
+  const sourceFormatRef = useRef('png');
   const runIdRef = useRef(0);
+  const queueGenerationRef = useRef(0);
+  const admissionChainRef = useRef(Promise.resolve());
+  const admissionCountRef = useRef(0);
+  const mountedRef = useRef(true);
   const { createPreview, clearPreviews } = usePreviewRegistry();
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      queueGenerationRef.current += 1;
+      runIdRef.current += 1;
+    };
+  }, []);
 
   useEffect(() => {
     if (!targets.includes(targetFormat)) setTargetFormat(targets[0] || '');
   }, [sourceFormat, targetFormat, targets]);
 
-  const resetOutput = () => {
+  const resetOutput = (nextStatus = 'idle') => {
     runIdRef.current += 1;
     clearPreviews();
     setResults([]);
-    setStatus('idle');
+    setStatus(nextStatus);
     setProgress(0);
     setProgressLabel('');
     setError('');
   };
 
   const changeSourceFormat = (nextSource) => {
+    queueGenerationRef.current += 1;
+    sourceFormatRef.current = nextSource;
+    filesRef.current = [];
     setSourceFormat(nextSource);
     setFiles([]);
-    resetOutput();
+    setSelectionError('');
+    resetOutput('idle');
   };
 
-  const handleFiles = async (nextFiles) => {
-    if (!nextFiles.length) return;
-    const detected = await Promise.all(nextFiles.map((file) => Promise.resolve(detectSourceFormat(file))));
-    const supported = detected.every((format) => format && SOURCE_FORMATS.includes(format));
-    if (!supported) {
-      setFiles([]);
-      resetOutput();
-      setError('Один или несколько файлов имеют неподдерживаемый формат.');
-      return;
-    }
-    const firstFormat = detected[0];
-    if (!detected.every((format) => format === firstFormat)) {
-      setFiles([]);
-      resetOutput();
-      setError('Для пакетной конвертации выберите файлы одного исходного формата.');
-      return;
-    }
-    const nextTargets = getTargetsForSource(firstFormat);
-    setSourceFormat(firstFormat);
-    if (!nextTargets.includes(targetFormat)) setTargetFormat(nextTargets[0] || '');
-    resetOutput();
+  const handleFiles = (nextFiles) => {
+    const incomingFiles = Array.from(nextFiles || []);
+    if (!incomingFiles.length) return;
+    const generation = queueGenerationRef.current;
+    admissionCountRef.current += 1;
+    setAdmissionPending(true);
+    admissionChainRef.current = admissionChainRef.current
+      .catch(() => undefined)
+      .then(async () => {
+        if (generation !== queueGenerationRef.current) return;
+        const basicError = getBasicQueueError(incomingFiles);
+        if (basicError) {
+          setSelectionError(`${basicError} Очередь не изменена.`);
+          return;
+        }
+        let detected;
+        try {
+          detected = await Promise.all(incomingFiles.map((file) => Promise.resolve(detectSourceFormat(file))));
+        } catch {
+          if (generation === queueGenerationRef.current) {
+            setSelectionError('Не удалось прочитать добавляемые файлы. Очередь не изменена.');
+          }
+          return;
+        }
+        if (generation !== queueGenerationRef.current) return;
+        const supported = detected.every((format) => format && SOURCE_FORMATS.includes(format));
+        if (!supported) {
+          setSelectionError('Один или несколько добавляемых файлов имеют неподдерживаемый формат. Очередь не изменена.');
+          return;
+        }
+        const firstFormat = detected[0];
+        if (!detected.every((format) => format === firstFormat)) {
+          setSelectionError('В одну очередь можно добавлять файлы только одного исходного формата. Очередь не изменена.');
+          return;
+        }
+        const acceptsMultiple = RASTER_FORMATS.has(firstFormat) || firstFormat === 'svg';
+        if (!acceptsMultiple && incomingFiles.length > 1) {
+          setSelectionError(`Для ${FORMAT_LABELS[firstFormat]} можно добавить только один файл за операцию.`);
+          return;
+        }
+        const queuedFiles = filesRef.current;
+        const queuedFormat = sourceFormatRef.current;
+        if (queuedFiles.length && firstFormat !== queuedFormat) {
+          setSelectionError(`В очереди уже находятся файлы ${FORMAT_LABELS[queuedFormat]}. Очистите её перед добавлением ${FORMAT_LABELS[firstFormat]}.`);
+          return;
+        }
+
+        const mergeResult = acceptsMultiple
+          ? appendUniqueFiles(queuedFiles, incomingFiles)
+          : { addedCount: 1, duplicateCount: 0, files: [incomingFiles[0]] };
+        if (!mergeResult.addedCount) {
+          setSelectionError('Все выбранные файлы уже находятся в очереди.');
+          return;
+        }
+
+        const nextTargets = getTargetsForSource(firstFormat);
+        sourceFormatRef.current = firstFormat;
+        filesRef.current = mergeResult.files;
+        setSourceFormat(firstFormat);
+        setTargetFormat((current) => (nextTargets.includes(current) ? current : (nextTargets[0] || '')));
+        resetOutput('ready');
+        setFiles(mergeResult.files);
+        setSelectionError(mergeResult.duplicateCount ? 'Повторно выбранные файлы пропущены.' : '');
+      })
+      .catch(() => {
+        if (generation === queueGenerationRef.current) {
+          setSelectionError('Не удалось проверить добавляемые файлы. Очередь не изменена.');
+        }
+      })
+      .finally(() => {
+        admissionCountRef.current = Math.max(0, admissionCountRef.current - 1);
+        if (!admissionCountRef.current && mountedRef.current) setAdmissionPending(false);
+      });
+  };
+
+  const removeQueuedFile = (index) => {
+    queueGenerationRef.current += 1;
+    const nextFiles = filesRef.current.filter((_, fileIndex) => fileIndex !== index);
+    filesRef.current = nextFiles;
     setFiles(nextFiles);
-    setStatus('ready');
+    setSelectionError('');
+    resetOutput(nextFiles.length ? 'ready' : 'idle');
+  };
+
+  const clearQueue = () => {
+    queueGenerationRef.current += 1;
+    filesRef.current = [];
+    setFiles([]);
+    setSelectionError('');
+    resetOutput('idle');
   };
 
   const runConversion = async () => {
-    if (!files.length || !targetFormat || status === 'processing') return;
+    if (!files.length || !targetFormat || status === 'processing' || admissionCountRef.current) return;
+    queueGenerationRef.current += 1;
     const runId = ++runIdRef.current;
+    const filesToProcess = filesRef.current;
+    const sourceToProcess = sourceFormatRef.current;
+    const targetToProcess = targetFormat;
     clearPreviews();
     setResults([]);
     setStatus('processing');
@@ -80,31 +173,38 @@ export function FileConverterPage() {
     setProgressLabel('Проверяем исходники');
     setError('');
     const processed = [];
-    for (let index = 0; index < files.length; index += 1) {
-      const file = files[index];
+    for (let index = 0; index < filesToProcess.length; index += 1) {
+      const file = filesToProcess[index];
       try {
-        const result = await convertFile(file, sourceFormat, targetFormat, {
+        const result = await convertFile(file, sourceToProcess, targetToProcess, {
           preserveDimensions: true,
           createPreview: false,
           onProgress: (value, label) => {
             if (runId !== runIdRef.current) return;
             const currentProgress = unpackProgress(value, label || 'Обрабатываем ' + file.name);
-            const overall = ((index + Math.max(0, Math.min(100, currentProgress.percent)) / 100) / files.length) * 100;
+            const overall = ((index + Math.max(0, Math.min(100, currentProgress.percent)) / 100) / filesToProcess.length) * 100;
             setProgress(overall);
             setProgressLabel(currentProgress.label);
           },
         });
         if (runId !== runIdRef.current) return;
-        processed.push(await decorateConversionResult(result, file, createPreview));
+        const decorated = await decorateConversionResult(result, file, createPreview);
+        if (runId !== runIdRef.current) {
+          clearPreviews();
+          return;
+        }
+        processed.push(decorated);
       } catch (conversionError) {
+        if (runId !== runIdRef.current) return;
         processed.push({
           id: file.name + '-' + file.lastModified,
           originalName: file.name,
           error: readableError(conversionError),
         });
       }
-      setProgress(((index + 1) / files.length) * 100);
-      setProgressLabel('Обработано ' + (index + 1) + ' из ' + files.length);
+      if (runId !== runIdRef.current) return;
+      setProgress(((index + 1) / filesToProcess.length) * 100);
+      setProgressLabel('Обработано ' + (index + 1) + ' из ' + filesToProcess.length);
       await yieldToBrowser();
     }
     if (runId !== runIdRef.current) return;
@@ -155,16 +255,29 @@ export function FileConverterPage() {
             </select>
           </label>
           <UploadZone
+            id="converter-upload-trigger"
             accept={ACCEPT_BY_FORMAT[sourceFormat]}
             badge={FORMAT_LABELS[sourceFormat]}
+            describedBy={selectionError ? 'converter-file-queue-error' : undefined}
             disabled={status === 'processing'}
-            fileName={files.length ? files.length === 1 ? files[0].name : files.length + ' файлов' : ''}
             hint={RASTER_FORMATS.has(sourceFormat) || sourceFormat === 'svg'
               ? 'Можно выбрать несколько файлов одного формата'
               : 'Один документ за операцию'}
             multiple={RASTER_FORMATS.has(sourceFormat) || sourceFormat === 'svg'}
             onFiles={handleFiles}
-            title="Перетащите или выберите файл"
+            title={files.length
+              ? (RASTER_FORMATS.has(sourceFormat) || sourceFormat === 'svg' ? 'Добавить ещё файлы' : 'Заменить файл')
+              : 'Перетащите или выберите файл'}
+          />
+          <FileQueue
+            id="converter-file-queue"
+            files={files}
+            error={selectionError}
+            disabled={status === 'processing'}
+            getFormat={() => sourceFormat}
+            onClear={clearQueue}
+            onRemove={removeQueuedFile}
+            uploadTriggerId="converter-upload-trigger"
           />
         </section>
         <div className="format-flow__arrow" aria-hidden="true">→</div>
@@ -181,8 +294,7 @@ export function FileConverterPage() {
               disabled={status === 'processing'}
               onChange={(event) => {
                 setTargetFormat(event.target.value);
-                resetOutput();
-                if (files.length) setStatus('ready');
+                resetOutput(files.length ? 'ready' : 'idle');
               }}
             >
               {targets.map((format) => (
@@ -200,7 +312,7 @@ export function FileConverterPage() {
               ? 'Растр будет трассирован в редактируемые векторные контуры.'
               : 'Файл будет подготовлен локально без отправки третьим лицам.'}
           </p>
-          <button className="button button--large" type="button" disabled={!files.length || status === 'processing'} onClick={runConversion}>
+          <button className="button button--large" type="button" disabled={!files.length || status === 'processing' || admissionPending} onClick={runConversion}>
             {status === 'processing'
               ? <><span className="spinner spinner--button" aria-hidden="true" />Конвертация</>
               : 'Конвертировать'}
@@ -208,9 +320,6 @@ export function FileConverterPage() {
         </section>
       </div>
       <StatusNotice status={status} progress={progress} label={progressLabel} error={error} />
-      {status === 'ready' && (
-        <EmptyState compact title="Файлы выбраны" text="Проверьте конечный формат и запустите конвертацию." />
-      )}
       {results.some((item) => item.blob) && (
         <div className="download-bar">
           <div>

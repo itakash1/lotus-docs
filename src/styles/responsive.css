@@ -455,6 +455,6 @@
 @supports not (backdrop-filter: blur(1px)) {
   .site-header,
   .site-footer {
-    background: rgba(5, 5, 7, 0.96);
+    background: var(--color-surface-glass-fallback);
   }
 }

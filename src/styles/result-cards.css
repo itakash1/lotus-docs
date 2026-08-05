@@ -14,15 +14,15 @@
 }
 
 .image-card:hover {
-  border-color: rgba(242, 164, 232, 0.34);
-  background: var(--surface-2);
+  border-color: var(--color-border-card-hover);
+  background: var(--color-surface-raised);
   box-shadow: var(--shadow-sm);
   transform: translateY(-3px);
 }
 
 .image-card--error {
-  border-color: rgba(255, 142, 181, 0.36);
-  background: var(--error-soft);
+  border-color: var(--color-status-error-border-subtle);
+  background: var(--color-status-error-surface);
 }
 
 .image-card__media,
@@ -30,8 +30,8 @@
 .file-placeholder {
   aspect-ratio: 4 / 3;
   overflow: hidden;
-  border-bottom: 1px solid var(--line);
-  background: var(--surface-2);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface-raised);
 }
 
 .image-card__media {
@@ -41,12 +41,12 @@
 
 .image-card__media--checker,
 .comparison-card__media--checker {
-  background-color: #121219;
+  background-color: var(--color-surface-checker);
   background-image:
-    linear-gradient(45deg, rgba(255, 255, 255, 0.055) 25%, transparent 25%),
-    linear-gradient(-45deg, rgba(255, 255, 255, 0.055) 25%, transparent 25%),
-    linear-gradient(45deg, transparent 75%, rgba(255, 255, 255, 0.055) 75%),
-    linear-gradient(-45deg, transparent 75%, rgba(255, 255, 255, 0.055) 75%);
+    linear-gradient(45deg, var(--color-checker-mark) 25%, transparent 25%),
+    linear-gradient(-45deg, var(--color-checker-mark) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, var(--color-checker-mark) 75%),
+    linear-gradient(-45deg, transparent 75%, var(--color-checker-mark) 75%);
   background-position: 0 0, 0 9px, 9px -9px, -9px 0;
   background-size: 18px 18px;
 }
@@ -75,7 +75,7 @@
 }
 
 .image-card__body > span:not(.result-type) {
-  color: var(--muted);
+  color: var(--color-text-secondary);
   font-size: 0.82rem;
 }
 
@@ -90,7 +90,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  color: var(--dim);
+  color: var(--color-text-tertiary);
   font-family: "Cascadia Code", "SFMono-Regular", Consolas, monospace;
   font-size: 0.68rem;
 }
@@ -106,7 +106,7 @@
   max-height: 250px;
   overflow: auto;
   padding: 14px;
-  background: #0d0d12;
+  background: var(--color-surface-code);
 }
 
 .file-preview pre {
@@ -116,16 +116,13 @@
 .file-placeholder {
   display: grid;
   place-items: center;
-  background:
-    radial-gradient(circle, rgba(255, 111, 218, 0.11), transparent 55%),
-    var(--surface-2);
+  background: var(--gradient-placeholder-glow), var(--color-surface-raised);
 }
 
 .file-placeholder span {
-  color: var(--lotus);
+  color: var(--color-accent-text);
   font-family: "Cascadia Code", "SFMono-Regular", Consolas, monospace;
   font-size: clamp(1.1rem, 3vw, 1.8rem);
   font-weight: 900;
   letter-spacing: 0.08em;
 }
-

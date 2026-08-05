@@ -7,7 +7,34 @@
       name="description"
       content="Lotus Docs — приватный браузерный конвертер DOCX, изображений и таблиц с оптимизацией и трассировкой SVG"
     />
-    <meta name="theme-color" content="#07070a" />
+    <meta name="theme-color" content="#050507" />
+    <script>
+      (() => {
+        const storageKey = 'lotus-docs-theme';
+        const darkQuery = '(prefers-color-scheme: dark)';
+        const themeColors = { dark: '#050507', light: '#faf8fb' };
+        let preference = null;
+
+        try {
+          const storedTheme = localStorage.getItem(storageKey);
+          if (storedTheme === 'light' || storedTheme === 'dark') {
+            preference = storedTheme;
+          }
+        } catch {
+          // Storage can be unavailable in privacy-restricted contexts.
+        }
+
+        const systemTheme = window.matchMedia?.(darkQuery).matches ? 'dark' : 'light';
+        const theme = preference || systemTheme;
+        const root = document.documentElement;
+
+        root.dataset.theme = theme;
+        root.style.colorScheme = theme;
+        root.style.backgroundColor = themeColors[theme];
+        document.querySelector('meta[name="theme-color"]')
+          ?.setAttribute('content', themeColors[theme]);
+      })();
+    </script>
     <title>Lotus Docs — конвертер документов и изображений</title>
     <link rel="icon" type="image/svg+xml" href="/lotus.svg" />
   </head>
