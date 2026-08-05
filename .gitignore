@@ -25,6 +25,7 @@ Thumbs.db
 # temporary files
 *.tmp
 *.temp
+ROADMAP.md
 
 # lockfiles (if using alternative package managers)
 pnpm-lock.yaml

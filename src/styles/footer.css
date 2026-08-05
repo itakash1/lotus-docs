@@ -1,0 +1,41 @@
+.site-footer {
+  border-top: 1px solid var(--line);
+  background: rgba(3, 3, 5, 0.82);
+  backdrop-filter: blur(20px);
+}
+
+.site-footer__inner {
+  min-height: 104px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 24px;
+}
+
+.site-footer p {
+  margin: 0;
+  color: var(--dim);
+  font-size: 0.86rem;
+  text-align: center;
+}
+
+.site-footer nav {
+  justify-content: flex-end;
+  gap: 18px;
+}
+
+.site-footer nav a {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 8px;
+  color: var(--muted);
+  font-size: 0.86rem;
+  font-weight: 750;
+  transition: color 180ms ease;
+}
+
+.site-footer nav a:hover {
+  color: var(--lotus);
+}
+

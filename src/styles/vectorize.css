@@ -1,0 +1,151 @@
+.vector-workspace {
+  display: grid;
+  grid-template-columns: minmax(310px, 0.72fr) minmax(0, 1.28fr);
+  align-items: start;
+  gap: 16px;
+}
+
+.vector-sidebar,
+.vector-preview {
+  min-width: 0;
+  border-radius: var(--radius-lg);
+  padding: 16px;
+}
+
+.vector-sidebar {
+  display: grid;
+  gap: 14px;
+}
+
+.vector-sidebar .upload-zone {
+  min-height: 210px;
+}
+
+.vector-settings {
+  display: grid;
+  gap: 15px;
+  border-top: 1px solid var(--line);
+  padding-top: 15px;
+}
+
+.vector-preview {
+  min-height: 100%;
+  display: grid;
+  align-content: start;
+  gap: 16px;
+}
+
+.vector-preview > .empty-state {
+  min-height: 520px;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.comparison-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.comparison-card {
+  min-width: 0;
+  overflow: hidden;
+  border-radius: var(--radius);
+}
+
+.comparison-card header {
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid var(--line);
+  padding: 10px 13px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
+.comparison-card__media {
+  aspect-ratio: 4 / 3;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: #0e0e13;
+}
+
+.comparison-card__media img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.comparison-card__placeholder {
+  color: rgba(242, 164, 232, 0.35);
+  font-size: clamp(2rem, 5vw, 4rem);
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.vector-result {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  border: 1px solid rgba(242, 164, 232, 0.26);
+  border-radius: var(--radius);
+  padding: 16px;
+  background: var(--accent-gradient-soft);
+  animation: reveal-down 260ms ease both;
+}
+
+.vector-result > div {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.vector-result strong,
+.vector-result > div > span:last-child {
+  overflow-wrap: anywhere;
+}
+
+.vector-result > div > span:last-child {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.svg-code {
+  overflow: hidden;
+  border-radius: var(--radius);
+}
+
+.svg-code summary {
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  padding: 0 15px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 0.84rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: color 180ms ease, background 180ms ease;
+}
+
+.svg-code summary:hover {
+  background: var(--surface-3);
+  color: var(--text);
+}
+
+.svg-code pre {
+  max-height: 420px;
+  overflow: auto;
+  border-top: 1px solid var(--line);
+  padding: 16px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+

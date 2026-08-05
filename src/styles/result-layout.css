@@ -1,0 +1,7 @@
+.conversion-results,
+.result,
+.images-panel {
+  min-width: 0;
+  display: grid;
+  gap: 18px;
+}
