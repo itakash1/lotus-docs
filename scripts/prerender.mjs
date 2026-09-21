@@ -3,10 +3,11 @@ import { createServer, loadEnv } from 'vite';
 import React from 'react';
 import { renderToString } from 'react-dom/server';
 import { SEO_BY_ROUTE } from '../src/constants/routes.js';
+import { SITE_URL } from '../src/constants/site.js';
 import { routeSeo, siteOrigin } from '../src/utils/seo.js';
 
 const environment = { ...loadEnv('production', process.cwd(), ''), ...process.env };
-const origin = siteOrigin(environment.VITE_SITE_URL || '');
+const origin = siteOrigin(environment.VITE_SITE_URL || SITE_URL);
 const server = await createServer({ configFile: false, esbuild: { jsx: 'automatic', tsconfigRaw: {} }, optimizeDeps: { noDiscovery: true, include: [] }, server: { middlewareMode: true, preTransformRequests: false }, appType: 'custom', logLevel: 'error' });
 const escape = value => String(value).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 try {

@@ -1,4 +1,5 @@
 import { SEO_BY_ROUTE } from '../constants/routes.js';
+import { SITE_URL } from '../constants/site.js';
 
 export function siteOrigin(value = '') {
   if (!value) return '';
@@ -30,7 +31,7 @@ export function routeSeo(route, origin = '') {
 }
 
 export function updateSeo(route) {
-  const origin = siteOrigin(import.meta.env.VITE_SITE_URL || '');
+  const origin = siteOrigin(import.meta.env.VITE_SITE_URL || SITE_URL);
   const seo = routeSeo(route, origin);
   document.title = seo.title;
   const meta = (key, content, property = false) => {
