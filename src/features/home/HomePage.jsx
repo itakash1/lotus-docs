@@ -1,10 +1,11 @@
 import { getPathForRoute } from '../../utils/routing';
+import { HeroMotion } from './HeroMotion';
 
 const SERVICES = [
   {
     eyebrow: 'DOCX → HTML',
-    title: 'Разместим статью быстро',
-    text: 'Чистая разметка, изображения, manifest и готовый архив для публикации.',
+    title: 'Статья из Word',
+    text: 'HTML, Markdown и изображения в одном архиве. Готово для вашего сайта.',
     page: 'articles',
     icon: 'article',
   },
@@ -16,9 +17,9 @@ const SERVICES = [
     icon: 'convert',
   },
   {
-    eyebrow: 'Без визуальных потерь',
-    title: 'Оптимизация изображений',
-    text: 'Адаптивный подбор качества для JPEG и WebP, lossless-путь для PNG.',
+    eyebrow: 'Меньше размер',
+    title: 'Сжатие изображений',
+    text: 'Уменьшайте вес фотографий. Если сжать не получилось — сохраним оригинал.',
     page: 'optimize',
     icon: 'optimize',
   },
@@ -38,8 +39,8 @@ export function HomePage({ onNavigate }) {
         <div className="hero__content">
           <p className="hero__eyebrow">Приватная обработка файлов в браузере</p>
           <h1 className="hero__title">
-            Публикуйте быстрее.<br />
-            <span>Без ручной рутины.</span>
+            Конвертер файлов.<br />
+            <span>Без лишних действий.</span>
           </h1>
           <p className="hero__text">
             Lotus Docs превращает документы и изображения в аккуратные материалы для сайта.
@@ -55,18 +56,16 @@ export function HomePage({ onNavigate }) {
             <li><span aria-hidden="true">03</span> Готово к публикации</li>
           </ul>
         </div>
-        <div className="hero__orb" aria-hidden="true">
-          <img src="/lotus.svg" alt="" />
-        </div>
+        <HeroMotion />
       </section>
 
       <section className="services-section" aria-labelledby="services-title">
         <div className="section-head">
           <div>
             <p className="page-head__eyebrow">Инструменты</p>
-            <h2 id="services-title">Один набор для контента и файлов</h2>
+            <h2 id="services-title">Что нужно сделать?</h2>
           </div>
-          <p>Каждая операция выполняется на стороне клиента.</p>
+          <p>Выберите инструмент — и добавьте файл.</p>
         </div>
         <div className="tools-grid">
           {SERVICES.map((service, index) => (
@@ -77,6 +76,7 @@ export function HomePage({ onNavigate }) {
               onClick={(event) => onNavigate(event, service.page)}
               style={{ '--stagger': index }}
             >
+              <span className="tool-card__number" aria-hidden="true">0{index + 1}</span>
               <span className="tool-card__eyebrow">{service.eyebrow}</span>
               <span className="tool-card__title">{service.title}</span>
               <span className="tool-card__text">{service.text}</span>

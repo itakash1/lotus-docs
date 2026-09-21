@@ -1,16 +1,19 @@
 import { useId, useState } from 'react';
+import { COMPRESSION_PRESETS } from '../../constants/compression';
 
 export function Settings({ options, onOptionsChange, disabled }) {
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const advancedId = useId();
   return (
     <section className="settings" aria-label="Настройки экспорта">
-      <div className="field field--static">
-        <span className="field__label">Изображения в HTML</span>
-        <strong className="field__value">&lt;!-- img1 --&gt;</strong>
-      </div>
       <label className="field">
-        <span className="field__label">Формат изображений</span>
+        <span className="field__label">Сжатие изображений</span>
+        <select className="field__control" value={options.compressionMode} disabled={disabled || options.imageExtension === 'png'} onChange={(event) => onOptionsChange({ compressionMode: event.target.value })}>
+          {Object.entries(COMPRESSION_PRESETS).map(([key, preset]) => <option key={key} value={key}>{preset.label}</option>)}
+        </select>
+      </label>
+      <label className="field">
+        <span className="field__label">Сжимать в (если меньше оригинала)</span>
         <select
           className="field__control"
           value={options.imageExtension}

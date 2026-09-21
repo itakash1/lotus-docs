@@ -746,6 +746,18 @@ async function encodeAdaptiveLossy(file, sourceFormat, targetFormat, canvas, res
 
   const meetsVisualThreshold = (candidate) => candidate.ssim >= minSsim;
   const fitsTarget = (candidate) => candidate.blob.size <= targetBytes;
+  // When the requested byte budget is too low, search the quality boundary as
+  // well. Otherwise only the maximum-quality sample may survive the SSIM gate.
+  if (!candidates.some((candidate) => meetsVisualThreshold(candidate) && fitsTarget(candidate))
+      && highCandidate.ssim >= minSsim && lowCandidate.ssim < minSsim) {
+    let qualityLow = minQuality;
+    let qualityHigh = maxQuality;
+    for (let index = 0; index < iterations; index++) {
+      const candidate = await encodeCandidate((qualityLow + qualityHigh) / 2, 0.84 + index / iterations * 0.1);
+      if (meetsVisualThreshold(candidate)) qualityHigh = candidate.quality;
+      else qualityLow = candidate.quality;
+    }
+  }
   const feasible = candidates
     .filter((candidate) => meetsVisualThreshold(candidate) && fitsTarget(candidate))
     .sort((left, right) => right.quality - left.quality || left.blob.size - right.blob.size);
@@ -801,6 +813,23 @@ export async function optimizeRasterImage(file, outputFormat, options = {}) {
 
     const size = calculateOutputSize(sourceSize.width, sourceSize.height, options);
     const resized = size.width !== sourceSize.width || size.height !== sourceSize.height;
+    // JPEG discards transparency; optimization must not silently flatten it.
+    if (options.onlyIfSmaller && !resized && targetFormat === 'jpeg' && sourceFormat !== 'jpeg') {
+      const { canvas: alphaCanvas, context } = renderImageToCanvas(image, size.width, size.height, 'png', options);
+      const pixels = context.getImageData(0, 0, size.width, size.height).data;
+      let transparent = false;
+      for (let offset = 3; offset < pixels.length; offset += 4) {
+        if (pixels[offset] !== 255) { transparent = true; break; }
+      }
+      alphaCanvas.width = alphaCanvas.height = 0;
+      if (transparent) {
+        reportProgress(options.onProgress, 1, 'done', 'Сохранён оригинал с прозрачностью');
+        return makeResult(file, sourceFormat, sourceFormat, file, {
+          ...options,
+          meta: { width: size.width, height: size.height, keptOriginal: true, preservedTransparency: true, requestedFormat: targetFormat, savedBytes: 0, savedPercent: 0, targetAchieved: false },
+        });
+      }
+    }
     reportProgress(options.onProgress, 0.15, 'render', 'Подготовка изображения', { width: size.width, height: size.height });
     const { canvas } = renderImageToCanvas(image, size.width, size.height, targetFormat, options);
     await yieldToMainThread(options.signal);
@@ -813,7 +842,12 @@ export async function optimizeRasterImage(file, outputFormat, options = {}) {
     }
     reportProgress(options.onProgress, 1, 'done', 'Изображение готово');
 
-    return makeResult(file, sourceFormat, targetFormat, encoded.blob, {
+    // Optimization may retain the source; explicit conversion must keep its requested format.
+    const keptOriginal = options.onlyIfSmaller === true && !resized
+      && (encoded.blob.size >= file.size || (encoded.ssim != null && encoded.ssim < encoded.minSsim));
+    const resultBlob = keptOriginal ? file : encoded.blob;
+    const resultFormat = keptOriginal ? sourceFormat : targetFormat;
+    return makeResult(file, sourceFormat, resultFormat, resultBlob, {
       ...options,
       meta: {
         width: size.width,
@@ -821,14 +855,16 @@ export async function optimizeRasterImage(file, outputFormat, options = {}) {
         sourceWidth: sourceSize.width,
         sourceHeight: sourceSize.height,
         resized,
-        savedBytes: file.size - encoded.blob.size,
-        savedPercent: file.size ? ((file.size - encoded.blob.size) / file.size) * 100 : 0,
+        keptOriginal,
+        requestedFormat: targetFormat,
+        savedBytes: file.size - resultBlob.size,
+        savedPercent: file.size ? ((file.size - resultBlob.size) / file.size) * 100 : 0,
         lossless: targetFormat === 'png' && !resized,
         pngStrategy: encoded.strategy,
-        quality: encoded.quality,
-        ssim: encoded.ssim,
+        quality: keptOriginal ? undefined : encoded.quality,
+        ssim: keptOriginal ? 1 : encoded.ssim,
         targetBytes: encoded.targetBytes,
-        targetAchieved: encoded.targetAchieved,
+        targetAchieved: keptOriginal ? false : encoded.targetAchieved,
         qualityAttempts: encoded.attempts,
       },
     });

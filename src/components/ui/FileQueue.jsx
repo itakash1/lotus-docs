@@ -54,6 +54,7 @@ export function FileQueue({
   onClear,
   onRemove,
   uploadTriggerId,
+  compact = false,
 }) {
   const generatedId = useId();
   const listRef = useRef(null);
@@ -76,7 +77,7 @@ export function FileQueue({
 
   return (
     <div
-      className={cx('file-queue', !queuedFiles.length && 'file-queue--empty', error && 'file-queue--error')}
+      className={cx('file-queue', compact && 'file-queue--compact', !queuedFiles.length && 'file-queue--empty', error && 'file-queue--error')}
       data-file-queue=""
     >
       <span className="sr-only file-queue__announcement" role="status" aria-live="polite" aria-atomic="true">
@@ -88,10 +89,10 @@ export function FileQueue({
         <>
           <div className="file-queue__header">
             <div>
-              <strong id={`${queueId}-label`}>Очередь файлов</strong>
+              <strong id={`${queueId}-label`}>{compact ? 'Выбранный документ' : 'Очередь файлов'}</strong>
               <span>{formatQueueCount(queuedFiles.length)}</span>
             </div>
-            <button
+            {!compact && <button
               className="file-queue__clear"
               type="button"
               disabled={disabled}
@@ -99,7 +100,7 @@ export function FileQueue({
               onClick={clearQueue}
             >
               Очистить
-            </button>
+            </button>}
           </div>
           <ul className="file-queue__list" aria-labelledby={`${queueId}-label`} ref={listRef}>
             {queuedFiles.map((file, index) => (

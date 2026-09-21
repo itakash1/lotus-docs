@@ -1,316 +1,138 @@
 :root {
   color-scheme: dark;
-
-  /* Canvas and surfaces */
-  --color-bg-page: #050507;
-  --color-bg-page-deep: #020203;
-  --color-bg-page-top: #08080b;
-  --color-brand-mark-bg: var(--color-bg-page-top);
-  --color-surface: #0b0b0f;
-  --color-surface-raised: #111117;
-  --color-surface-hover: #17171f;
-  --color-surface-glass: rgba(13, 13, 18, 0.78);
-  --color-surface-header: rgba(5, 5, 7, 0.78);
-  --color-surface-footer: rgba(3, 3, 5, 0.82);
-  --color-surface-glass-fallback: rgba(5, 5, 7, 0.96);
-  --color-surface-code: #0d0d12;
-  --color-surface-preview: #0e0e13;
-  --color-surface-checker: #121219;
-  --color-surface-subtle: rgba(255, 255, 255, 0.025);
-  --color-surface-note: rgba(255, 255, 255, 0.018);
-  --color-progress-track: rgba(255, 255, 255, 0.08);
-  --color-checker-mark: rgba(255, 255, 255, 0.055);
-
-  /* Text */
-  --color-text-primary: #fbf9fc;
-  --color-text-secondary: rgba(251, 249, 252, 0.7);
-  --color-text-tertiary: rgba(251, 249, 252, 0.5);
-  --color-text-code: #eeeaf0;
-  --color-text-accent-soft: #f8d2f2;
-  --color-text-accent-cta: #f9c9f2;
-  --color-text-accent-hover: #fbe5f8;
-  --color-text-on-accent: #09060a;
-  --color-text-on-accent-strong: #08060a;
-  --color-text-on-accent-graphic: var(--color-bg-page-deep);
-
-  /* Borders, accent and interaction */
-  --color-border: rgba(255, 255, 255, 0.12);
-  --color-border-strong: rgba(255, 255, 255, 0.24);
-  --color-accent: #f2a4e8;
-  --color-accent-text: var(--color-accent);
-  --color-accent-strong: #ff6fda;
-  --color-accent-secondary: #aa7cff;
-  --color-accent-surface: rgba(242, 164, 232, 0.14);
-  --color-accent-surface-subtle: rgba(242, 164, 232, 0.075);
-  --color-border-accent: rgba(242, 164, 232, 0.48);
-  --color-border-nav-hover: rgba(242, 164, 232, 0.2);
-  --color-border-badge: rgba(242, 164, 232, 0.22);
-  --color-border-status: rgba(242, 164, 232, 0.24);
-  --color-border-result: rgba(242, 164, 232, 0.26);
-  --color-border-emphasis: rgba(242, 164, 232, 0.28);
-  --color-border-card-hover: rgba(242, 164, 232, 0.34);
-  --color-accent-ring: rgba(242, 164, 232, 0.3);
-  --color-accent-scrollbar: rgba(242, 164, 232, 0.32);
-  --color-accent-placeholder: rgba(242, 164, 232, 0.35);
-  --color-accent-link-underline: rgba(242, 164, 232, 0.45);
-  --color-focus-ring: rgba(242, 164, 232, 0.62);
-  --color-focus-ring-soft: rgba(242, 164, 232, 0.1);
-
-  /* Controls */
-  --color-control-bg: var(--color-surface-raised);
-  --color-control-bg-hover: var(--color-surface-hover);
-  --color-control-border: var(--color-border);
-  --color-control-border-hover: var(--color-border-strong);
-  --color-control-border-focus: var(--color-border-accent);
-  --color-control-text: var(--color-text-primary);
-  --color-control-disabled-bg: var(--color-surface-hover);
-  --color-control-disabled-border: var(--color-border);
-  --color-control-disabled-text: var(--color-text-tertiary);
-  --color-spinner-track: rgba(242, 164, 232, 0.2);
-  --color-spinner-on-accent-track: rgba(8, 6, 10, 0.3);
-  --color-spinner-secondary-track: rgba(251, 249, 252, 0.24);
-  --color-spinner-disabled-track: rgba(251, 249, 252, 0.18);
-  --opacity-disabled-control: 0.58;
-  --opacity-disabled-native: 0.5;
-  --opacity-disabled-range: 0.5;
-
-  /* Status */
-  --color-status-info: var(--color-accent-text);
-  --color-status-info-text: var(--color-text-primary);
-  --color-status-info-border: var(--color-border-status);
-  --color-status-success: #7ce3a4;
-  --color-status-success-text: #b9f5cf;
-  --color-status-success-border: rgba(124, 227, 164, 0.4);
-  --color-status-success-surface: rgba(64, 190, 112, 0.1);
-  --color-status-warning: #ffc765;
-  --color-status-warning-text: #ffe3ad;
-  --color-status-warning-border: rgba(255, 199, 101, 0.42);
-  --color-status-warning-surface: rgba(255, 171, 51, 0.1);
-  --color-status-error: #ff8eb5;
-  --color-status-error-text: #ffc0d6;
-  --color-status-error-border: rgba(255, 142, 181, 0.4);
-  --color-status-error-border-subtle: rgba(255, 142, 181, 0.36);
-  --color-status-error-surface: rgba(255, 88, 145, 0.1);
-
-  /* Overlays and themed backgrounds */
-  --color-overlay-backdrop: rgba(2, 2, 3, 0.72);
-  --color-overlay-backdrop-strong: rgba(2, 2, 3, 0.86);
-  --color-page-grid: rgba(255, 255, 255, 0.018);
-  --background-page:
-    radial-gradient(circle at 12% -8%, rgba(255, 111, 218, 0.12), transparent 34rem),
-    radial-gradient(circle at 92% 2%, rgba(170, 124, 255, 0.1), transparent 30rem),
-    linear-gradient(180deg, var(--color-bg-page-top) 0, var(--color-bg-page) 35rem, var(--color-bg-page-deep) 100%);
-  --gradient-accent: linear-gradient(135deg, #ff77dc 0%, #d788f4 52%, #a978ff 100%);
-  --gradient-accent-action: var(--gradient-accent);
-  --gradient-accent-text: var(--gradient-accent);
-  --gradient-accent-soft: linear-gradient(135deg, rgba(255, 119, 220, 0.16), rgba(169, 120, 255, 0.1));
-  --gradient-status-info: linear-gradient(110deg, rgba(255, 111, 218, 0.08), rgba(170, 124, 255, 0.045));
-  --gradient-download: linear-gradient(110deg, rgba(255, 111, 218, 0.09), rgba(170, 124, 255, 0.055));
-  --gradient-range: linear-gradient(90deg, rgba(255, 111, 218, 0.75), rgba(170, 124, 255, 0.75));
-  --gradient-panel-preview: linear-gradient(145deg, rgba(255, 255, 255, 0.025), transparent 40%);
-  --gradient-upload-glow: radial-gradient(circle, rgba(255, 111, 218, 0.2), transparent 68%);
-  --gradient-placeholder-glow: radial-gradient(circle, rgba(255, 111, 218, 0.11), transparent 55%);
-  --gradient-card: linear-gradient(145deg, rgba(255, 255, 255, 0.045), transparent 45%);
-  --gradient-card-hover: linear-gradient(145deg, rgba(255, 255, 255, 0.07), transparent 44%);
-  --gradient-card-glow: radial-gradient(circle, rgba(255, 111, 218, 0.16), transparent 68%);
-  --gradient-hero-orb:
-    radial-gradient(circle at 38% 32%, rgba(255, 255, 255, 0.12), transparent 18%),
-    radial-gradient(circle at center, rgba(255, 111, 218, 0.16), rgba(170, 124, 255, 0.07) 54%, transparent 72%);
-
-  /* Shadows and highlights */
-  --shadow-sm: 0 12px 35px rgba(0, 0, 0, 0.24);
-  --shadow-lg: 0 30px 100px rgba(0, 0, 0, 0.52);
-  --shadow-accent: 0 18px 60px rgba(208, 105, 232, 0.2);
-  --shadow-header: 0 12px 40px rgba(0, 0, 0, 0.18);
-  --shadow-brand-mark: 0 0 12px rgba(242, 164, 232, 0.24);
-  --shadow-brand-mark-hover: 0 0 18px rgba(255, 111, 218, 0.4);
-  --shadow-header-cta: 0 10px 34px rgba(211, 104, 234, 0.22);
-  --shadow-surface-inset: inset 0 1px 0 rgba(255, 255, 255, 0.035);
-  --shadow-card-inset: inset 0 1px 0 rgba(255, 255, 255, 0.045);
-  --shadow-card-hover: var(--shadow-lg), inset 0 1px 0 rgba(255, 255, 255, 0.07);
-  --shadow-button: 0 11px 34px rgba(210, 101, 231, 0.17), inset 0 1px 0 rgba(255, 255, 255, 0.28);
-  --shadow-button-hover: 0 16px 48px rgba(215, 111, 239, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.36);
-  --shadow-button-active: 0 8px 24px rgba(215, 111, 239, 0.2);
-  --shadow-button-secondary-hover: 0 13px 40px rgba(196, 92, 218, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.05);
-  --shadow-focus-control: 0 0 0 4px var(--color-focus-ring-soft);
-  --shadow-upload-hover: var(--shadow-accent), inset 0 1px 0 rgba(255, 255, 255, 0.06);
-  --shadow-upload-icon: 0 10px 30px rgba(206, 101, 227, 0.13);
-  --shadow-range-thumb: 0 0 0 2px var(--color-accent-ring), 0 4px 14px rgba(255, 111, 218, 0.28);
-  --shadow-range-thumb-ring: 0 0 0 2px var(--color-accent-ring);
-  --shadow-tab-active: inset 0 -2px 0 var(--color-accent-strong), 0 8px 26px rgba(207, 104, 229, 0.1);
-  --shadow-progress: 0 0 18px rgba(255, 111, 218, 0.45);
-  --shadow-empty-mark: 0 10px 28px rgba(200, 93, 224, 0.12);
-  --shadow-fix-marker: 0 0 9px rgba(255, 111, 218, 0.5);
-  --shadow-flow-arrow: 0 10px 34px rgba(206, 101, 228, 0.12);
-  --shadow-download: var(--shadow-accent), inset 0 1px 0 rgba(255, 255, 255, 0.05);
-  --shadow-hero-orb: inset 0 0 70px rgba(242, 164, 232, 0.08), 0 0 100px rgba(170, 124, 255, 0.13);
-  --shadow-hero-mark: 0 24px 45px rgba(255, 111, 218, 0.25);
-  --shadow-badge-mark: 0 0 6px rgba(255, 111, 218, 0.6);
-
-  /* Decorative borders that must remain independently themeable */
-  --color-hero-orb-border: rgba(242, 164, 232, 0.28);
-  --color-hero-orb-ring: rgba(255, 255, 255, 0.1);
-  --color-hero-orb-orbit: rgba(242, 164, 232, 0.16);
-
-  /* Layout */
-  --container: 1240px;
-  --radius-sm: 10px;
-  --radius: 16px;
-  --radius-lg: 24px;
-  --control-height: 46px;
-}
-
-:root[data-theme="light"] {
-  color-scheme: light;
-
-  /* Canvas and surfaces */
-  --color-bg-page: #faf8fb;
-  --color-bg-page-deep: #f2eef4;
-  --color-bg-page-top: #fffaff;
-  --color-brand-mark-bg: #342736;
-  --color-surface: #ffffff;
-  --color-surface-raised: #f7f3f8;
-  --color-surface-hover: #eee8f0;
-  --color-surface-glass: rgba(255, 252, 255, 0.86);
-  --color-surface-header: rgba(255, 252, 255, 0.88);
-  --color-surface-footer: rgba(246, 242, 248, 0.94);
-  --color-surface-glass-fallback: #fffaff;
-  --color-surface-code: #f5f1f6;
-  --color-surface-preview: #f8f5f9;
-  --color-surface-checker: #ece7ee;
-  --color-surface-subtle: rgba(55, 45, 59, 0.045);
-  --color-surface-note: rgba(55, 45, 59, 0.035);
-  --color-progress-track: #d9d1dc;
-  --color-checker-mark: rgba(69, 56, 74, 0.15);
-
-  /* Text */
-  --color-text-primary: #262129;
-  --color-text-secondary: #5e5663;
-  --color-text-tertiary: #716877;
-  --color-text-code: #332c36;
-  --color-text-accent-soft: #713a69;
-  --color-text-accent-cta: #64355f;
-  --color-text-accent-hover: #5d3058;
-  --color-text-on-accent: #262129;
-  --color-text-on-accent-strong: #211a22;
-  --color-text-on-accent-graphic: #211a22;
-
-  /* Borders, accent and interaction */
-  --color-border: #d7d0d9;
-  --color-border-strong: #948999;
-  --color-accent: #e4bae0;
-  --color-accent-text: #704469;
-  --color-accent-strong: #704469;
-  --color-accent-secondary: #50588d;
-  --color-accent-surface: rgba(228, 186, 224, 0.4);
-  --color-accent-surface-subtle: rgba(228, 186, 224, 0.24);
-  --color-border-accent: #a878a1;
-  --color-border-nav-hover: rgba(112, 68, 105, 0.28);
-  --color-border-badge: rgba(112, 68, 105, 0.34);
-  --color-border-status: rgba(112, 68, 105, 0.38);
-  --color-border-result: rgba(112, 68, 105, 0.42);
-  --color-border-emphasis: #9a6b93;
-  --color-border-card-hover: #8a5b82;
-  --color-accent-ring: #96708f;
-  --color-accent-scrollbar: #9a6b93;
-  --color-accent-placeholder: #704469;
-  --color-accent-link-underline: #8a5b82;
-  --color-focus-ring: #704469;
-  --color-focus-ring-soft: rgba(112, 68, 105, 0.18);
-
-  /* Controls */
-  --color-control-bg: #ffffff;
-  --color-control-bg-hover: #f3edf4;
-  --color-control-border: #948999;
-  --color-control-border-hover: #746879;
-  --color-control-border-focus: #704469;
-  --color-control-text: #262129;
-  --color-control-disabled-bg: #eee9ef;
-  --color-control-disabled-border: #89828f;
-  --color-control-disabled-text: #5e5663;
-  --color-spinner-track: rgba(112, 68, 105, 0.28);
-  --color-spinner-on-accent-track: rgba(38, 33, 41, 0.28);
-  --color-spinner-secondary-track: rgba(38, 33, 41, 0.28);
-  --color-spinner-disabled-track: rgba(38, 33, 41, 0.18);
+  --color-bg-page: #0a0a0a;
+  --color-bg-page-deep: #080808;
+  --color-bg-page-top: #0a0a0a;
+  --color-brand-mark-bg: transparent;
+  --color-surface: #111;
+  --color-surface-raised: #191919;
+  --color-surface-hover: #242424;
+  --color-surface-glass: #191919;
+  --color-surface-header: #0a0a0a;
+  --color-surface-footer: #0a0a0a;
+  --color-surface-glass-fallback: #0a0a0a;
+  --color-surface-code: #101010;
+  --color-surface-preview: #131313;
+  --color-surface-checker: #191919;
+  --color-surface-subtle: #191919;
+  --color-surface-note: #191919;
+  --color-progress-track: #333;
+  --color-checker-mark: #252525;
+  --color-text-primary: #f5f5f5;
+  --color-text-secondary: #b3b3b3;
+  --color-text-tertiary: #a0a0a0;
+  --color-text-code: #d4d4d4;
+  --color-text-accent-soft: #bbb;
+  --color-text-accent-cta: #bbb;
+  --color-text-accent-hover: #bbb;
+  --color-text-on-accent: #101010;
+  --color-text-on-accent-strong: #101010;
+  --color-text-on-accent-graphic: #101010;
+  --color-border: #303030;
+  --color-border-strong: #666;
+  --color-accent: #f1f1f1;
+  --color-accent-text: #ededed;
+  --color-accent-strong: #fff;
+  --color-accent-secondary: #ccc;
+  --color-accent-surface: #252525;
+  --color-accent-surface-subtle: #191919;
+  --color-border-accent: #555;
+  --color-border-nav-hover: #555;
+  --color-border-badge: #555;
+  --color-border-status: #555;
+  --color-border-result: #555;
+  --color-border-emphasis: #555;
+  --color-border-card-hover: #555;
+  --color-accent-ring: #555;
+  --color-accent-scrollbar: #bbb;
+  --color-accent-placeholder: #bbb;
+  --color-accent-link-underline: #bbb;
+  --color-focus-ring: #fff;
+  --color-focus-ring-soft: #555;
+  --color-control-bg: #141414;
+  --color-control-bg-hover: #242424;
+  --color-control-border: #555;
+  --color-control-border-hover: #aaa;
+  --color-control-border-focus: #fff;
+  --color-control-text: #ededed;
+  --color-control-disabled-bg: #181818;
+  --color-control-disabled-border: #333;
+  --color-control-disabled-text: #999;
+  --color-spinner-track: #191919;
+  --color-spinner-on-accent-track: #999;
+  --color-spinner-secondary-track: #191919;
+  --color-spinner-disabled-track: #191919;
   --opacity-disabled-control: 1;
   --opacity-disabled-native: 1;
   --opacity-disabled-range: 0.45;
-
-  /* Status */
-  --color-status-info: #315f91;
-  --color-status-info-text: #294f7a;
-  --color-status-info-border: #6f8eae;
-  --color-status-success: #4f568e;
-  --color-status-success-text: #414879;
-  --color-status-success-border: #8388ad;
-  --color-status-success-surface: #eff0f8;
-  --color-status-warning: #794e7f;
-  --color-status-warning-text: #68416d;
-  --color-status-warning-border: #9d77a1;
-  --color-status-warning-surface: #f3edf3;
-  --color-status-error: #a02f52;
-  --color-status-error-text: #842643;
-  --color-status-error-border: #b95f7c;
-  --color-status-error-border-subtle: #bd6983;
-  --color-status-error-surface: #f6ecf0;
-
-  /* Overlays and themed backgrounds */
-  --color-overlay-backdrop: rgba(38, 33, 41, 0.42);
-  --color-overlay-backdrop-strong: rgba(38, 33, 41, 0.58);
-  --color-page-grid: rgba(70, 56, 74, 0.055);
-  --background-page:
-    radial-gradient(circle at 12% -8%, rgba(228, 186, 224, 0.38), transparent 34rem),
-    radial-gradient(circle at 92% 2%, rgba(166, 147, 205, 0.22), transparent 30rem),
-    linear-gradient(180deg, var(--color-bg-page-top) 0, var(--color-bg-page) 35rem, var(--color-bg-page-deep) 100%);
-  --gradient-accent: linear-gradient(135deg, #f1dcef 0%, #e4bae0 52%, #cfc0e8 100%);
-  --gradient-accent-action: var(--gradient-accent);
-  --gradient-accent-text: linear-gradient(135deg, #7b4b74 0%, #66507f 52%, #50588d 100%);
-  --gradient-accent-soft: linear-gradient(135deg, rgba(228, 186, 224, 0.42), rgba(181, 166, 220, 0.24));
-  --gradient-status-info: linear-gradient(110deg, #edf2f7, #f1eff7);
-  --gradient-download: linear-gradient(110deg, rgba(228, 186, 224, 0.34), rgba(181, 166, 220, 0.2));
-  --gradient-range: linear-gradient(90deg, #9a5a90, #65539a);
-  --gradient-panel-preview: linear-gradient(145deg, rgba(112, 68, 105, 0.035), transparent 40%);
-  --gradient-upload-glow: radial-gradient(circle, rgba(228, 186, 224, 0.42), transparent 68%);
-  --gradient-placeholder-glow: radial-gradient(circle, rgba(228, 186, 224, 0.3), transparent 55%);
-  --gradient-card: linear-gradient(145deg, rgba(112, 68, 105, 0.035), transparent 45%);
-  --gradient-card-hover: linear-gradient(145deg, rgba(112, 68, 105, 0.065), transparent 44%);
-  --gradient-card-glow: radial-gradient(circle, rgba(228, 186, 224, 0.34), transparent 68%);
-  --gradient-hero-orb:
-    radial-gradient(circle at 38% 32%, rgba(255, 255, 255, 0.42), transparent 18%),
-    radial-gradient(circle at center, #704469 0%, #83607f 34%, rgba(228, 186, 224, 0.62) 56%, transparent 72%);
-
-  /* Shadows and highlights */
-  --shadow-sm: 0 12px 35px rgba(50, 39, 54, 0.13);
-  --shadow-lg: 0 30px 100px rgba(50, 39, 54, 0.18);
-  --shadow-accent: 0 18px 60px rgba(132, 72, 123, 0.2);
-  --shadow-header: 0 12px 40px rgba(50, 39, 54, 0.1);
-  --shadow-brand-mark: 0 0 12px rgba(228, 186, 224, 0.42);
-  --shadow-brand-mark-hover: 0 0 18px rgba(112, 68, 105, 0.34);
-  --shadow-header-cta: 0 10px 34px rgba(132, 72, 123, 0.2);
-  --shadow-surface-inset: inset 0 1px 0 rgba(255, 255, 255, 0.78);
-  --shadow-card-inset: inset 0 1px 0 rgba(255, 255, 255, 0.84);
-  --shadow-card-hover: var(--shadow-lg), inset 0 1px 0 rgba(255, 255, 255, 0.92);
-  --shadow-button: 0 11px 34px rgba(132, 72, 123, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.78);
-  --shadow-button-hover: 0 16px 48px rgba(132, 72, 123, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.9);
-  --shadow-button-active: 0 8px 24px rgba(132, 72, 123, 0.22);
-  --shadow-button-secondary-hover: 0 13px 40px rgba(80, 66, 86, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.9);
-  --shadow-focus-control: 0 0 0 4px var(--color-focus-ring-soft);
-  --shadow-upload-hover: var(--shadow-accent), inset 0 1px 0 rgba(255, 255, 255, 0.82);
-  --shadow-upload-icon: 0 10px 30px rgba(132, 72, 123, 0.16);
-  --shadow-range-thumb: 0 0 0 2px var(--color-accent-ring), 0 4px 14px rgba(112, 68, 105, 0.24);
-  --shadow-range-thumb-ring: 0 0 0 2px var(--color-accent-ring);
-  --shadow-tab-active: inset 0 -2px 0 var(--color-accent-strong), 0 8px 26px rgba(112, 68, 105, 0.14);
-  --shadow-progress: 0 0 18px rgba(112, 68, 105, 0.3);
-  --shadow-empty-mark: 0 10px 28px rgba(132, 72, 123, 0.16);
-  --shadow-fix-marker: 0 0 9px rgba(112, 68, 105, 0.32);
-  --shadow-flow-arrow: 0 10px 34px rgba(132, 72, 123, 0.16);
-  --shadow-download: var(--shadow-accent), inset 0 1px 0 rgba(255, 255, 255, 0.82);
-  --shadow-hero-orb: inset 0 0 70px rgba(255, 255, 255, 0.18), 0 0 100px rgba(112, 68, 105, 0.2);
-  --shadow-hero-mark: 0 24px 45px rgba(52, 39, 54, 0.22);
-  --shadow-badge-mark: 0 0 6px rgba(112, 68, 105, 0.34);
-
-  /* Decorative borders that must remain independently themeable */
-  --color-hero-orb-border: rgba(112, 68, 105, 0.38);
-  --color-hero-orb-ring: rgba(255, 255, 255, 0.28);
-  --color-hero-orb-orbit: rgba(112, 68, 105, 0.3);
+  --color-status-info: #bbb;
+  --color-status-info-text: #bbb;
+  --color-status-info-border: #555;
+  --color-status-success: #bbb;
+  --color-status-success-text: #bbb;
+  --color-status-success-border: #555;
+  --color-status-success-surface: #191919;
+  --color-status-warning: #bbb;
+  --color-status-warning-text: #bbb;
+  --color-status-warning-border: #555;
+  --color-status-warning-surface: #191919;
+  --color-status-error: #bbb;
+  --color-status-error-text: #bbb;
+  --color-status-error-border: #555;
+  --color-status-error-border-subtle: #555;
+  --color-status-error-surface: #191919;
+  --color-overlay-backdrop: rgb(0 0 0 / .8);
+  --color-overlay-backdrop-strong: rgb(0 0 0 / .8);
+  --color-page-grid: #bbb;
+  --background-page: #0a0a0a;
+  --gradient-accent: linear-gradient(#191919,#191919);
+  --gradient-accent-action: linear-gradient(#f1f1f1,#f1f1f1);
+  --gradient-accent-text: linear-gradient(#f1f1f1,#f1f1f1);
+  --gradient-accent-soft: linear-gradient(#191919,#191919);
+  --gradient-status-info: linear-gradient(#191919,#191919);
+  --gradient-download: linear-gradient(#191919,#191919);
+  --gradient-range: linear-gradient(#191919,#191919);
+  --gradient-panel-preview: linear-gradient(#191919,#191919);
+  --gradient-upload-glow: linear-gradient(#191919,#191919);
+  --gradient-placeholder-glow: linear-gradient(#191919,#191919);
+  --gradient-card: linear-gradient(#191919,#191919);
+  --gradient-card-hover: linear-gradient(#191919,#191919);
+  --gradient-card-glow: linear-gradient(#191919,#191919);
+  --gradient-hero-orb: linear-gradient(#191919,#191919);
+  --shadow-sm: none;
+  --shadow-lg: none;
+  --shadow-accent: none;
+  --shadow-header: none;
+  --shadow-brand-mark: none;
+  --shadow-brand-mark-hover: none;
+  --shadow-header-cta: none;
+  --shadow-surface-inset: none;
+  --shadow-card-inset: none;
+  --shadow-card-hover: none;
+  --shadow-button: none;
+  --shadow-button-hover: none;
+  --shadow-button-active: none;
+  --shadow-button-secondary-hover: none;
+  --shadow-focus-control: none;
+  --shadow-upload-hover: none;
+  --shadow-upload-icon: none;
+  --shadow-range-thumb: none;
+  --shadow-range-thumb-ring: none;
+  --shadow-tab-active: none;
+  --shadow-progress: none;
+  --shadow-empty-mark: none;
+  --shadow-fix-marker: none;
+  --shadow-flow-arrow: none;
+  --shadow-download: none;
+  --shadow-hero-orb: none;
+  --shadow-hero-mark: none;
+  --shadow-badge-mark: none;
+  --color-hero-orb-border: #555;
+  --color-hero-orb-ring: #555;
+  --color-hero-orb-orbit: #bbb;
+  --container: 1200px;
+  --radius-sm: 8px;
+  --radius: 14px;
+  --radius-lg: 18px;
+  --control-height: 46px;
 }

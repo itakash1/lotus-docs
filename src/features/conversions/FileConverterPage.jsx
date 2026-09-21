@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ACCEPT_BY_FORMAT, FORMAT_LABELS, RASTER_FORMATS, SOURCE_FORMATS } from '../../constants/formats';
+import { ALL_SUPPORTED_ACCEPT, FORMAT_LABELS, RASTER_FORMATS, SOURCE_FORMATS } from '../../constants/formats';
+import { FileGlyph } from '../../components/ui/FileGlyph';
 import { FileQueue } from '../../components/ui/FileQueue';
 import { PageHead } from '../../components/ui/PageHead';
 import { ResultCards } from '../../components/ui/ResultCards';
@@ -13,9 +14,9 @@ import { appendUniqueFiles, getBasicQueueError } from '../../utils/fileQueue';
 import { readableError, unpackProgress } from '../../utils/presentation';
 
 export function FileConverterPage() {
-  const [sourceFormat, setSourceFormat] = useState('png');
+  const [sourceFormat, setSourceFormat] = useState('auto');
   const targets = useMemo(() => getTargetsForSource(sourceFormat), [sourceFormat]);
-  const [targetFormat, setTargetFormat] = useState(() => getTargetsForSource('png')[0] || 'jpeg');
+  const [targetFormat, setTargetFormat] = useState('');
   const [files, setFiles] = useState([]);
   const [results, setResults] = useState([]);
   const [status, setStatus] = useState('idle');
@@ -26,7 +27,7 @@ export function FileConverterPage() {
   const [admissionPending, setAdmissionPending] = useState(false);
   const [downloadBusy, setDownloadBusy] = useState(false);
   const filesRef = useRef([]);
-  const sourceFormatRef = useRef('png');
+  const sourceFormatRef = useRef('auto');
   const runIdRef = useRef(0);
   const queueGenerationRef = useRef(0);
   const admissionChainRef = useRef(Promise.resolve());
@@ -94,7 +95,7 @@ export function FileConverterPage() {
         if (generation !== queueGenerationRef.current) return;
         const supported = detected.every((format) => format && SOURCE_FORMATS.includes(format));
         if (!supported) {
-          setSelectionError('Один или несколько добавляемых файлов имеют неподдерживаемый формат. Очередь не изменена.');
+          setSelectionError(detected.includes('pdf') ? 'PDF поддерживается только как результат DOCX → PDF. Преобразование PDF в PNG и другие форматы здесь недоступно.' : 'Этот исходный формат не поддерживается. Добавьте изображение, DOCX, XLSX или CSV.');
           return;
         }
         const firstFormat = detected[0];
@@ -228,109 +229,48 @@ export function FileConverterPage() {
   };
 
   return (
-    <section className="page">
-      <PageHead
-        eyebrow="Универсальная конвертация"
-        title="Конвертер файлов"
-        text="Изображения, документы и таблицы преобразуются прямо в браузере. Выберите пару форматов, добавьте файлы и скачайте результат."
-        aside={<span className="privacy-badge"><span aria-hidden="true">●</span> 100% на устройстве</span>}
-      />
-      <div className="format-flow" aria-label="Настройка конвертации">
-        <section className="format-card">
-          <div className="column-head">
-            <span>1</span>
-            <strong>Исходный формат</strong>
-          </div>
-          <label className="field">
-            <span className="field__label">Что загружаем</span>
-            <select
-              className="field__control field__control--large"
-              value={sourceFormat}
-              disabled={status === 'processing'}
-              onChange={(event) => changeSourceFormat(event.target.value)}
-            >
-              {SOURCE_FORMATS.map((format) => (
-                <option value={format} key={format}>{FORMAT_LABELS[format]}</option>
-              ))}
+    <section className="page converter-page">
+      <PageHead eyebrow="Один файл. Новый формат." title="Конвертер файлов" text="Добавьте файл — определим его тип и предложим только доступные форматы. Всё происходит в вашем браузере." />
+      <div className="converter-pair" aria-label="Настройка конвертации">
+        <section className="converter-side">
+          <h2 className="converter-side__label">01 / Исходный файл</h2>
+          <UploadZone id="converter-upload-trigger" accept={ALL_SUPPORTED_ACCEPT + ',.pdf'}
+            icon={<FileGlyph format={sourceFormat === 'auto' ? '+' : FORMAT_LABELS[sourceFormat]} ready={files.length > 0} />}
+            describedBy={selectionError ? 'converter-file-queue-error' : undefined} disabled={status === 'processing'}
+            hint={files.length ? 'Нажмите, чтобы добавить или заменить' : 'Или перетащите его сюда'} multiple onFiles={handleFiles}
+            title={files.length === 1 ? files[0].name : files.length ? files.length + ' файлов выбрано' : 'Выберите файл'} />
+          <label className="field"><span className="field__label">Что загружаем</span>
+            <select className="field__control" value={sourceFormat} disabled={status === 'processing'} onChange={(event) => changeSourceFormat(event.target.value)}>
+              <option value="auto">Определить автоматически</option>
+              {SOURCE_FORMATS.map((format) => <option value={format} key={format}>{FORMAT_LABELS[format]}</option>)}
             </select>
           </label>
-          <UploadZone
-            id="converter-upload-trigger"
-            accept={ACCEPT_BY_FORMAT[sourceFormat]}
-            badge={FORMAT_LABELS[sourceFormat]}
-            describedBy={selectionError ? 'converter-file-queue-error' : undefined}
-            disabled={status === 'processing'}
-            hint={RASTER_FORMATS.has(sourceFormat) || sourceFormat === 'svg'
-              ? 'Можно выбрать несколько файлов одного формата'
-              : 'Один документ за операцию'}
-            multiple={RASTER_FORMATS.has(sourceFormat) || sourceFormat === 'svg'}
-            onFiles={handleFiles}
-            title={files.length
-              ? (RASTER_FORMATS.has(sourceFormat) || sourceFormat === 'svg' ? 'Добавить ещё файлы' : 'Заменить файл')
-              : 'Перетащите или выберите файл'}
-          />
-          <FileQueue
-            id="converter-file-queue"
-            files={files}
-            error={selectionError}
-            disabled={status === 'processing'}
-            getFormat={() => sourceFormat}
-            onClear={clearQueue}
-            onRemove={removeQueuedFile}
-            uploadTriggerId="converter-upload-trigger"
-          />
         </section>
-        <div className="format-flow__arrow" aria-hidden="true">→</div>
-        <section className="format-card">
-          <div className="column-head">
-            <span>2</span>
-            <strong>Формат результата</strong>
+        <span className="converter-direction" aria-hidden="true">→</span>
+        <section className="converter-side">
+          <h2 className="converter-side__label">02 / Готовый файл</h2>
+          <div className={'converter-output' + (status === 'processing' ? ' converter-output--processing' : '')}>
+            <FileGlyph format={FORMAT_LABELS[targetFormat] || '?'} ready={results.some(item => item.blob)} />
+            <strong>{results.some(item => item.blob) ? 'Готово к скачиванию' : targetFormat ? 'Ваш файл в ' + FORMAT_LABELS[targetFormat] : 'Результат конвертации'}</strong>
+            <span>{status === 'processing' ? 'Преобразуем…' : results.some(item => item.blob) ? 'Файл готов' : 'Появится автоматически'}</span>
           </div>
-          <label className="field">
-            <span className="field__label">Во что конвертируем</span>
-            <select
-              className="field__control field__control--large"
-              value={targetFormat}
-              disabled={status === 'processing'}
-              onChange={(event) => {
-                setTargetFormat(event.target.value);
-                resetOutput(files.length ? 'ready' : 'idle');
-              }}
-            >
-              {targets.map((format) => (
-                <option value={format} key={format}>{FORMAT_LABELS[format]}</option>
-              ))}
+          <label className="field"><span className="field__label">Во что конвертируем</span>
+            <select className="field__control" value={targetFormat} disabled={!targets.length || status === 'processing'} onChange={(event) => { setTargetFormat(event.target.value); resetOutput(files.length ? 'ready' : 'idle'); }}>
+              {!targets.length && <option value="">Сначала добавьте файл</option>}
+              {targets.map(format => <option value={format} key={format}>{FORMAT_LABELS[format]}</option>)}
             </select>
           </label>
-          <div className="conversion-summary">
-            <span>{FORMAT_LABELS[sourceFormat]}</span>
-            <span aria-hidden="true">→</span>
-            <strong>{FORMAT_LABELS[targetFormat]}</strong>
-          </div>
-          <p className="target-panel__note">
-            {targetFormat === 'svg'
-              ? 'Растр будет трассирован в редактируемые векторные контуры.'
-              : 'Файл будет подготовлен локально без отправки третьим лицам.'}
-          </p>
-          <button className="button button--large" type="button" disabled={!files.length || status === 'processing' || admissionPending} onClick={runConversion}>
-            {status === 'processing'
-              ? <><span className="spinner spinner--button" aria-hidden="true" />Конвертация</>
-              : 'Конвертировать'}
-          </button>
         </section>
       </div>
+      <FileQueue id="converter-file-queue" files={files} error={selectionError} disabled={status === 'processing'} getFormat={() => sourceFormat} onClear={clearQueue} onRemove={removeQueuedFile} uploadTriggerId="converter-upload-trigger" />
+      <div className="converter-action">
+        <p>Только поддерживаемые направления. PDF → PNG недоступно.</p>
+        <button className="button" type="button" disabled={!files.length || !targetFormat || status === 'processing' || admissionPending} onClick={runConversion}>
+          {status === 'processing' ? <><span className="spinner spinner--button" aria-hidden="true" />Конвертация</> : 'Конвертировать'}
+        </button>
+      </div>
       <StatusNotice status={status} progress={progress} label={progressLabel} error={error} />
-      {results.some((item) => item.blob) && (
-        <div className="download-bar">
-          <div>
-            <strong>Результат готов</strong>
-            <span>{results.filter((item) => item.blob).length} файл(а)</span>
-          </div>
-          <button className="button" type="button" disabled={downloadBusy} onClick={downloadAll}>
-            {downloadBusy ? 'Готовим архив…' : results.filter((item) => item.blob).length > 1 ? 'Скачать ZIP' : 'Скачать файл'}
-          </button>
-        </div>
-      )}
+      {results.some(item => item.blob) && <div className="download-bar"><div><strong>Результат готов</strong><span>{results.filter(item => item.blob).length} файл(а)</span></div><button className="button" type="button" disabled={downloadBusy} onClick={downloadAll}>{downloadBusy ? 'Готовим…' : results.filter(item => item.blob).length > 1 ? 'Скачать ZIP' : 'Скачать файл'}</button></div>}
       <ResultCards results={results} />
     </section>
   );

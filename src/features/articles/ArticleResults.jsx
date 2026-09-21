@@ -1,8 +1,8 @@
 import { useId, useMemo, useState } from 'react';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { downloadBlob } from '../../utils/browserFiles';
-import { cx, formatBytes, formatPercent, readableError } from '../../utils/presentation';
-import { downloadArticlePackage, downloadImagesZip, imageManifest } from './articleProcessing';
+import { cx, describeSaving, formatBytes, formatPercent, readableError } from '../../utils/presentation';
+import { articlePreviewHtml, downloadArticlePackage, downloadImagesZip, imageManifest } from './articleProcessing';
 
 function getHtmlStats(html, images) {
   if (!html) return [];
@@ -32,10 +32,10 @@ function Stats({ html, images }) {
 }
 
 export function ResultPanel({ state, baseName, onCopy, onDownload, onTabChange }) {
-  const [spellCheckEnabled, setSpellCheckEnabled] = useState(true);
   const [downloadStatus, setDownloadStatus] = useState('idle');
   const [downloadError, setDownloadError] = useState('');
   const id = useId();
+  const previewHtml = useMemo(() => state.cleanedHtml ? articlePreviewHtml(state.cleanedHtml, state.images) : '', [state.cleanedHtml, state.images]);
   if (state.status !== 'converted') return null;
   if (!state.cleanedHtml) {
     return (
@@ -95,10 +95,10 @@ export function ResultPanel({ state, baseName, onCopy, onDownload, onTabChange }
                   activateRelativeTab(-1);
                 } else if (event.key === 'Home') {
                   event.preventDefault();
-                  onTabChange(tabs[0].id);
+                  activateRelativeTab(-currentIndex);
                 } else if (event.key === 'End') {
                   event.preventDefault();
-                  onTabChange(tabs[tabs.length - 1].id);
+                  activateRelativeTab(tabs.length - 1 - currentIndex);
                 }
               }}
             >
@@ -119,6 +119,7 @@ export function ResultPanel({ state, baseName, onCopy, onDownload, onTabChange }
         </div>
       </div>
       <span className="sr-only" aria-live="polite">{state.copyStatus === 'copied' ? 'Результат скопирован' : ''}</span>
+      <p className="export-hint">HTML содержит маркеры &lt;!-- img1 --&gt;, &lt;!-- img2 --&gt; и далее. Изображения скачиваются отдельно или вместе с текстом в архиве.</p>
       {downloadError && <div className="status-card status-card--error" role="alert">{downloadError}</div>}
       <Stats html={state.cleanedHtml} images={state.images} />
       <div className="result__grid">
@@ -134,30 +135,16 @@ export function ResultPanel({ state, baseName, onCopy, onDownload, onTabChange }
         <article className="panel">
           <header className="panel__header panel__header--preview">
             <span>Предпросмотр HTML</span>
-            <label className="spell-toggle">
-              <input
-                type="checkbox"
-                checked={spellCheckEnabled}
-                onChange={(event) => setSpellCheckEnabled(event.target.checked)}
-              />
-              Проверка орфографии
-            </label>
           </header>
           <div
-            className={cx('panel__body', 'panel__body--preview', spellCheckEnabled && 'panel__body--spellcheck')}
-            contentEditable={spellCheckEnabled}
-            suppressContentEditableWarning
-            spellCheck={spellCheckEnabled}
+            className="panel__body panel__body--preview"
             lang="ru"
             role="document"
-            aria-label="Предпросмотр статьи с браузерной проверкой орфографии"
-            onBeforeInput={(event) => event.preventDefault()}
-            onPaste={(event) => event.preventDefault()}
-            onDrop={(event) => event.preventDefault()}
-            dangerouslySetInnerHTML={{ __html: state.cleanedHtml }}
+            aria-label="Предпросмотр статьи с маркерами изображений"
+            dangerouslySetInnerHTML={{ __html: previewHtml }}
           />
           <p className="panel__note">
-            Подчёркивания создаёт словарь вашего браузера только в предпросмотре. HTML-код не изменяется.
+            Маркеры img1, img2 и далее показывают места для вставки изображений в CMS.
           </p>
         </article>
       </div>
@@ -211,11 +198,11 @@ export function ImagesPanel({ images, baseName, converted }) {
       <div className="section-head">
         <div>
           <p className="page-head__eyebrow">Медиа</p>
-          <h2>Изображения после HTML</h2>
-          <p>Названия и порядок совпадают с комментариями &lt;!-- imgN --&gt; в разметке.</p>
+          <h2>Изображения статьи</h2>
+          <p>Номер изображения соответствует маркеру imgN в тексте.</p>
         </div>
         <div className="actions">
-          <span className="saving">−{formatBytes(saved)} · {formatPercent(savingPercent)}</span>
+          <span className="saving">{saved > 0 ? `Меньше на ${formatBytes(saved)} · ${formatPercent(savingPercent)}` : 'Сохранены оригиналы'}</span>
           <button className="button button--secondary" type="button" disabled={status === 'downloading'} onClick={handleZip}>
             {status === 'downloading' ? 'Собираем ZIP…' : 'Скачать ZIP'}
           </button>
@@ -227,7 +214,6 @@ export function ImagesPanel({ images, baseName, converted }) {
           const file = image.optimized || image;
           const source = image.optimized?.dataUrl || image.dataUrl;
           const outputSize = image.optimized?.size ?? image.size;
-          const itemSaving = image.size ? Math.max(0, ((image.size - outputSize) / image.size) * 100) : 0;
           return (
             <article className="image-card" key={image.number + '-' + image.name} style={{ '--stagger': index }}>
               <div className="image-card__media">
@@ -235,11 +221,12 @@ export function ImagesPanel({ images, baseName, converted }) {
               </div>
               <div className="image-card__body">
                 <div className="image-card__meta">
-                  <span>#{image.number}</span>
+                  <span>img{image.number}</span>
                   <span>{file.type || image.contentType}</span>
                 </div>
                 <strong>{file.name}</strong>
-                <span>{formatBytes(image.size)} → {formatBytes(outputSize)} · −{formatPercent(itemSaving)}</span>
+                <span>{formatBytes(image.size)} → {formatBytes(outputSize)}</span>
+                <span>{describeSaving(image.size, outputSize)}</span>
                 <button
                   className="button button--secondary"
                   type="button"

@@ -7,6 +7,7 @@
 # local env files
 .env
 .env.*
+!.env.example
 
 # logs
 npm-debug.log*
@@ -36,3 +37,5 @@ yarn.lock
 
 # build output
 coverage/
+test-results/
+playwright-report/

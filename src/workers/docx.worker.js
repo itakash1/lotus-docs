@@ -19,8 +19,9 @@ self.addEventListener('message', async (event) => {
         convertImage: mammoth.images.imgElement(async (image) => {
           const number = images.length + 1;
           const contentType = image.contentType || 'application/octet-stream';
+          images.push({ number, contentType });
           const base64 = await image.read('base64');
-          images.push({ number, contentType, base64 });
+          images[number - 1].base64 = base64;
           self.postMessage({
             type: 'progress',
             value: Math.min(58, 18 + number * 2),

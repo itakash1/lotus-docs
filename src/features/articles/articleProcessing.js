@@ -1,7 +1,11 @@
 import { IMAGE_EXTENSION_BY_TYPE } from '../../constants/article';
+import { COMPRESSION_PRESETS } from '../../constants/compression';
 import { base64ToBlob, downloadBlob, loadJSZip, yieldToBrowser } from '../../utils/browserFiles';
 import { optimizeRasterImage, sanitizeFileName } from '../../utils/fileConverters';
-import { cleanDocumentHtml, htmlToMarkdown, htmlToPlainText } from '../../utils/htmlCleaner';
+import { htmlToMarkdown, htmlToPlainText } from '../../utils/htmlCleaner';
+
+import { prepareArticleHtml } from './articleMarkup';
+export { prepareArticleHtml, articlePreviewHtml } from './articleMarkup';
 
 export function articleImageName(index, contentType, extensionOverride) {
   const extension = extensionOverride || IMAGE_EXTENSION_BY_TYPE[contentType] || 'bin';
@@ -31,8 +35,9 @@ export async function readDocxDirect(file, onProgress) {
       convertImage: mammoth.images.imgElement(async (image) => {
         const number = images.length + 1;
         const contentType = image.contentType || 'application/octet-stream';
+        images.push({ number, contentType });
         const base64 = await image.read('base64');
-        images.push({ number, contentType, base64 });
+        images[number - 1].base64 = base64;
         onProgress(Math.min(58, 18 + number * 2), 'Извлекаем изображения: ' + number);
         return {
           src: 'lotus-image:' + number,
@@ -109,17 +114,21 @@ export async function extractArticle(file, options, onProgress) {
     if (!contentType.includes('svg') && contentType.startsWith('image/')) {
       try {
         const output = await optimizeRasterImage(originalBlob, options.imageExtension, {
+          ...COMPRESSION_PRESETS[options.compressionMode || 'balanced'],
+          onlyIfSmaller: true,
           preserveDimensions: true,
           targetSavings: 0.28,
           targetReduction: 0.28,
           createPreview: false,
         });
-        const extension = options.imageExtension === 'jpeg' ? 'jpg' : options.imageExtension;
+        const actualFormat = output.meta.targetFormat;
+        const extension = actualFormat === 'jpeg' ? 'jpg' : actualFormat;
         optimized = {
           name: articleImageName(index, output.mime || contentType, extension),
           type: output.mime || output.blob.type,
           size: output.blob.size,
           blob: output.blob,
+          keptOriginal: output.meta.keptOriginal,
           width: output.meta?.width,
           height: output.meta?.height,
         };
@@ -140,7 +149,7 @@ export async function extractArticle(file, options, onProgress) {
 
   onProgress(89, 'Очищаем и форматируем HTML');
   await yieldToBrowser();
-  const cleanResult = cleanDocumentHtml(extracted.sourceHtml, options);
+  const cleanResult = prepareArticleHtml(extracted.sourceHtml, options, images);
   const imagesWithPreviews = images.map((image) => {
     const dataUrl = URL.createObjectURL(image.blob);
     if (!image.optimized) return { ...image, dataUrl };
@@ -186,7 +195,10 @@ export async function downloadArticlePackage(html, images, baseName) {
   const safeBaseName = sanitizeFileName(baseName || 'document');
   const root = zip.folder(safeBaseName);
   const imagesFolder = root.folder('images');
-  root.file(safeBaseName + '.html', html);
+  const title = safeBaseName.replace(/[&<>"']/g, '');
+  root.file(safeBaseName + '.html', `<!doctype html>\n<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title><style>body{max-width:800px;margin:40px auto;padding:0 20px;font:18px/1.7 system-ui;color:#242939;overflow-wrap:anywhere}img{max-width:100%;height:auto}table{border-collapse:collapse;display:block;overflow:auto}td,th{border:1px solid #ddd;padding:8px}pre{overflow:auto}</style></head><body>${html}</body></html>`);
+  root.file(safeBaseName + '.md', htmlToMarkdown(html));
+  root.file(safeBaseName + '.txt', htmlToPlainText(html));
   images.forEach((image) => {
     if (image.optimized) imagesFolder.file(image.optimized.name, image.optimized.blob);
     else imagesFolder.file(image.name, image.blob);

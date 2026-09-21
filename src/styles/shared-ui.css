@@ -313,13 +313,13 @@
   color: var(--color-control-text);
 }
 
-:root[data-theme="light"] .field__control:disabled {
+:root .field__control:disabled {
   border-color: var(--color-control-disabled-border);
   background: var(--color-control-disabled-bg);
   color: var(--color-control-disabled-text);
 }
 
-:root[data-theme="light"] .field__control::placeholder {
+:root .field__control::placeholder {
   color: var(--color-text-tertiary);
   opacity: 1;
 }

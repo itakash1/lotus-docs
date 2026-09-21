@@ -5,6 +5,7 @@ import { ResultCards } from '../../components/ui/ResultCards';
 import { StatusNotice } from '../../components/ui/StatusNotice';
 import { UploadZone } from '../../components/ui/UploadZone';
 import { RASTER_FORMATS } from '../../constants/formats';
+import { COMPRESSION_PRESETS } from '../../constants/compression';
 import { usePreviewRegistry } from '../../hooks/usePreviewRegistry';
 import { downloadResults, yieldToBrowser } from '../../utils/browserFiles';
 import { decorateConversionResult } from '../../utils/conversionResults';
@@ -16,6 +17,7 @@ export function OptimizePage() {
   const [files, setFiles] = useState([]);
   const [format, setFormat] = useState('webp');
   const [targetSaving, setTargetSaving] = useState(35);
+  const [compressionMode, setCompressionMode] = useState('balanced');
   const [results, setResults] = useState([]);
   const [status, setStatus] = useState('idle');
   const [progress, setProgress] = useState(0);
@@ -136,6 +138,8 @@ export function OptimizePage() {
       const file = filesToProcess[index];
       try {
         const output = await optimizeRasterImage(file, format, {
+          ...COMPRESSION_PRESETS[compressionMode],
+          onlyIfSmaller: true,
           preserveDimensions: true,
           targetSavings: targetSaving / 100,
           targetReduction: targetSaving / 100,
@@ -190,11 +194,11 @@ export function OptimizePage() {
   };
 
   return (
-    <section className="page">
+    <section className="page optimize-page">
       <PageHead
         eyebrow="Умное сжатие"
-        title="Оптимизация без видимых потерь"
-        text="Размеры в пикселях сохраняются. Для JPEG и WebP качество подбирается автоматически, PNG пересохраняется только lossless."
+        title="Меньше вес. Те же размеры."
+        text="Выберите баланс размера и качества. Размеры в пикселях сохраняются. Если файл уже хорошо сжат, попробуйте режим «Меньше размер» или WebP. Результат никогда не будет тяжелее оригинала."
         aside={<span className="privacy-badge"><span aria-hidden="true">●</span> Исходники остаются у вас</span>}
       />
       <div className="conversion-workspace">
@@ -241,6 +245,12 @@ export function OptimizePage() {
                 <option value="png">PNG · без потерь</option>
               </select>
             </label>
+            <label className="field">
+              <span className="field__label">Режим сжатия</span>
+              <select className="field__control" value={compressionMode} disabled={format === 'png' || status === 'processing'} onChange={(event) => { setCompressionMode(event.target.value); resetOutput(files.length ? 'ready' : 'idle'); }}>
+                {Object.entries(COMPRESSION_PRESETS).map(([key, preset]) => <option key={key} value={key}>{preset.label}</option>)}
+              </select>
+            </label>
             <label className="range-field">
               <span><span className="field__label">Желаемая экономия</span><strong>{targetSaving}%</strong></span>
               <input
@@ -255,7 +265,7 @@ export function OptimizePage() {
                   resetOutput(files.length ? 'ready' : 'idle');
                 }}
               />
-              <small>{format === 'png' ? 'Для PNG применяется только lossless-оптимизация.' : 'Алгоритм остановится раньше, если дальнейшее сжатие даст заметные артефакты.'}</small>
+              <small>{format === 'png' ? 'PNG часто уже сжат. Для заметного уменьшения веса выберите WebP.' : 'Сжатие с потерями: сильный режим может изменить мелкие детали. Желаемая экономия — ориентир.'}</small>
             </label>
             <button className="button button--large" type="button" disabled={!files.length || status === 'processing' || admissionPending} onClick={optimizeFiles}>
               {status === 'processing'
@@ -269,7 +279,7 @@ export function OptimizePage() {
       {results.some((item) => item.blob) && (
         <div className="download-bar">
           <div>
-            <strong>Экономия {formatBytes(totalSaved)} · {formatPercent(totalPercent)}</strong>
+            <strong>{totalSaved > 0 ? `Экономия ${formatBytes(totalSaved)} · ${formatPercent(totalPercent)}` : 'Файлы уже сжаты — сохранены оригиналы'}</strong>
             <span>{formatBytes(totalOriginal)} → {formatBytes(totalOutput)}</span>
           </div>
           <button className="button" type="button" disabled={downloadBusy} onClick={downloadAll}>

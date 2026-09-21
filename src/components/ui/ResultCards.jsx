@@ -62,6 +62,8 @@ export function ResultCards({ results }) {
                 </div>
                 <strong>{item.fileName}</strong>
                 <span>{formatBytes(item.originalSize)} → {formatBytes(item.outputSize)}</span>
+                {item.meta?.keptOriginal && <span>{item.meta.preservedTransparency ? 'Сохранён оригинал: JPEG не поддерживает прозрачность.' : 'Сохранён оригинал: дополнительное сжатие не улучшило результат.'}</span>}
+                {!item.meta?.keptOriginal && item.meta?.targetAchieved === false && <span>Достигнуто доступное сжатие с сохранением качества.</span>}
                 {describeMeta(item) && <span>{describeMeta(item)}</span>}
                 <button className="button button--secondary" type="button" onClick={() => downloadBlob(item.blob, item.fileName)}>
                   Скачать

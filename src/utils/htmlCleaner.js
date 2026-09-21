@@ -977,6 +977,12 @@ export function cleanDocumentHtml(html, options = {}) {
 
 export function htmlToPlainText(html, options = {}) {
   const doc = parseHtml(html, options?.domParser);
+  const comments = doc.createTreeWalker(doc.body, 128);
+  const markers = [];
+  while (comments.nextNode()) {
+    if (IMAGE_PLACEHOLDER_PATTERN.test(comments.currentNode.nodeValue || '')) markers.push(comments.currentNode);
+  }
+  markers.forEach(node => node.replaceWith(doc.createTextNode('\n' + node.nodeValue.trim() + '\n')));
 
   for (const image of Array.from(doc.querySelectorAll('img'))) {
     image.replaceWith(doc.createTextNode(image.getAttribute('alt') || ''));

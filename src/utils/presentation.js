@@ -12,13 +12,20 @@ export function formatBytes(bytes) {
     value /= 1024;
     unitIndex += 1;
   }
-  const digits = value >= 10 || unitIndex === 0 ? 0 : 1;
+  const digits = unitIndex === 0 ? 0 : 2;
   return value.toLocaleString('ru-RU', { maximumFractionDigits: digits }) + ' ' + units[unitIndex];
 }
 
 export function formatPercent(value) {
   const safeValue = Number.isFinite(value) ? Math.max(0, value) : 0;
-  return Math.round(safeValue).toLocaleString('ru-RU') + '%';
+  if (safeValue > 0 && safeValue < 0.1) return '<0,1%';
+  return safeValue.toLocaleString('ru-RU', { maximumFractionDigits: 1 }) + '%';
+}
+
+export function describeSaving(original, output) {
+  const saved = original - output;
+  if (saved <= 0) return 'Размер не уменьшился — сохранён оригинал';
+  return `Меньше на ${formatBytes(saved)} (${formatPercent(saved / original * 100)})`;
 }
 
 export function unpackProgress(value, fallbackLabel = '') {

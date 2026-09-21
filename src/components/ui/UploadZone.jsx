@@ -11,6 +11,7 @@ export function UploadZone({
   multiple = false,
   onFiles,
   title,
+  icon,
 }) {
   const inputRef = useRef(null);
   const [dragging, setDragging] = useState(false);
@@ -48,7 +49,7 @@ export function UploadZone({
           handleFiles(event.dataTransfer.files);
         }}
       >
-        <span className="upload-zone__icon" aria-hidden="true">↗</span>
+        {icon || <span className="upload-zone__icon" aria-hidden="true">↗</span>}
         <span className="upload-zone__badge">{badge}</span>
         <span className="upload-zone__title">{title}</span>
         <span className="upload-zone__hint">{hint}</span>
